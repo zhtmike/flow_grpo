@@ -11,7 +11,7 @@
 
 **2025-08-04**
 
-* Adding support for **FLUX.1-Kontext-dev**. For the counting task, we use Geneval reward (to detect the number of objects) and CLIPScore (to ensure consistency between the edited and original images). After training with Flow-GRPO, the test accuracy consistently improves from 0.23 to 0.8. Moreover, since this is an edit task with a reference image, KL constraints are unnecessary, and we observe no degradation in the quality of the generated images.
+* Adding support for **FLUX.1-Kontext-dev**. For the counting task, we use Geneval reward (to detect the number of objects) and CLIPScore (to ensure consistency between the edited and original images). Please note that this support is only a functional implementation — our training set contains only 800 samples, and the goal is to verify that the pipeline works end-to-end. Making Flow-GRPO truly effective for edit tasks still requires continued exploration by the community.
 
 
 **2025-07-31**
