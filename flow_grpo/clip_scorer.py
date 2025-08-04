@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torchvision
 import torchvision.transforms as T
-from transformers import AutoImageProcessor,AutoModel,AutoProcessor
+from transformers import AutoImageProcessor,CLIPProcessor, CLIPModel
 import numpy as np
 from PIL import Image
 
@@ -28,10 +28,11 @@ def get_image_transform(processor:AutoImageProcessor):
     return T.Compose([resize, crop, normalise])
 
 class ClipScorer(torch.nn.Module):
-    def __init__(self, dtype):
+    def __init__(self, device):
         super().__init__()
-        self.model = AutoModel.from_pretrained("openai/clip-vit-large-patch14")
-        self.processor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
+        self.device=device
+        self.model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to(device)
+        self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
         self.tform = get_image_transform(self.processor.image_processor)
         self.eval()
     
@@ -43,17 +44,19 @@ class ClipScorer(torch.nn.Module):
         return pixels
 
     @torch.no_grad()
-    def __call__(self, pixels, prompts):
-        texts = self.processor(text=prompts, padding='max_length', truncation=True, return_tensors="pt").to(pixels.device)
-        pixels = self._process(pixels)
+    def __call__(self, pixels, prompts, return_img_embedding=False):
+        texts = self.processor(text=prompts, padding='max_length', truncation=True, return_tensors="pt").to(self.device)
+        pixels = self._process(pixels).to(self.device)
         outputs = self.model(pixel_values=pixels, **texts)
+        if return_img_embedding:
+            return outputs.logits_per_image.diagonal()/30, outputs.image_embeds
         return outputs.logits_per_image.diagonal()/30
 
 
 
 def main():
     scorer = ClipScorer(
-        dtype=torch.float32
+        device='cuda'
     )
 
     images=[

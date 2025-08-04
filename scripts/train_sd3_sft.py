@@ -331,7 +331,7 @@ def main(_):
         # log_with="wandb",
         mixed_precision=config.mixed_precision,
         project_config=accelerator_config,
-        gradient_accumulation_steps=config.train.gradient_accumulation_steps * num_train_timesteps,
+        gradient_accumulation_steps=config.train.gradient_accumulation_steps,
     )
     if accelerator.is_main_process:
         wandb.init(project="flow_grpo")
@@ -521,8 +521,6 @@ def main(_):
     sample_neg_prompt_embeds = neg_prompt_embed.repeat(config.sample.train_batch_size, 1, 1)
     sample_neg_pooled_prompt_embeds = neg_pooled_prompt_embed.repeat(config.sample.train_batch_size, 1)
 
-    if config.sample.num_image_per_prompt == 1:
-        config.per_prompt_stat_tracking = False
     # initialize stat tracker
     if config.per_prompt_stat_tracking:
         stat_tracker = PerPromptStatTracker(config.sample.global_std)
@@ -792,75 +790,82 @@ def main(_):
                 embeds = sample["prompt_embeds"]
                 pooled_embeds = sample["pooled_prompt_embeds"]
 
-                train_timesteps = [step_index  for step_index in range(num_train_timesteps)]
-                for j in tqdm(
-                    train_timesteps,
-                    desc="Timestep",
-                    position=1,
-                    leave=False,
-                    disable=not accelerator.is_local_main_process,
-                ):
+                with accelerator.accumulate(transformer):
+                    model_input = sample["latents"]
+                    # Convert images to latent space
+                    noise = torch.randn_like(model_input)
+                    bsz = model_input.shape[0]
 
-                    with accelerator.accumulate(transformer):
-                        model_input = sample["latents"]
-                        # Convert images to latent space
-                        noise = torch.randn_like(model_input)
-                        bsz = model_input.shape[0]
+                    # Sample a random timestep for each image
+                    # for weighting schemes where we sample timesteps non-uniformly
+                    u = compute_density_for_timestep_sampling(
+                        weighting_scheme='logit_normal',
+                        batch_size=bsz,
+                        logit_mean=0,
+                        logit_std=1,
+                        mode_scale=1.29,
+                    )
+                    indices = (u * noise_scheduler.config.num_train_timesteps).long()
+                    timesteps = noise_scheduler.timesteps[indices].to(device=model_input.device)
 
-                        # Sample a random timestep for each image
-                        # for weighting schemes where we sample timesteps non-uniformly
-                        u = compute_density_for_timestep_sampling(
-                            weighting_scheme='logit_normal',
-                            batch_size=bsz,
-                            logit_mean=0,
-                            logit_std=1,
-                            mode_scale=1.29,
-                        )
-                        indices = (u * noise_scheduler.config.num_train_timesteps).long()
-                        timesteps = noise_scheduler.timesteps[indices].to(device=model_input.device)
+                    # Add noise according to flow matching.
+                    # zt = (1 - texp) * x + texp * z1
+                    sigmas = get_sigmas(noise_scheduler, timesteps, accelerator, n_dim=model_input.ndim, dtype=model_input.dtype)
+                    noisy_model_input = (1.0 - sigmas) * model_input + sigmas * noise
+                    with autocast():
+                        pipeline.transformer.set_adapter("learner")
+                        model_pred = transformer(
+                            hidden_states=noisy_model_input,
+                            timestep=timesteps,
+                            encoder_hidden_states=embeds,
+                            pooled_projections=pooled_embeds,
+                            return_dict=False,
+                        )[0]
+                        if config.train.beta > 0:
+                            with torch.no_grad():
+                                with transformer.module.disable_adapter():
+                                    model_pred_ref = transformer(
+                                        hidden_states=noisy_model_input,
+                                        timestep=timesteps,
+                                        encoder_hidden_states=embeds,
+                                        pooled_projections=pooled_embeds,
+                                        return_dict=False,
+                                    )[0]
+                    target = noise - model_input
+                    fm_loss = ((model_pred.float() - target.float()) ** 2).mean(dim=(1, 2, 3))
+                    info["fm_loss"].append(fm_loss)
+                    if config.train.beta > 0:
+                        kl_loss = ((model_pred.float() - model_pred_ref.float()) ** 2).mean(dim=(1, 2, 3))
+                        info["kl_loss"].append(kl_loss)
+                        loss = (sample["advantages"].squeeze(1)*fm_loss + config.train.beta * kl_loss).mean()
+                    else:
+                        loss = fm_loss.mean()
+                    info["loss"].append(loss)
 
-                        # Add noise according to flow matching.
-                        # zt = (1 - texp) * x + texp * z1
-                        sigmas = get_sigmas(noise_scheduler, timesteps, accelerator, n_dim=model_input.ndim, dtype=model_input.dtype)
-                        noisy_model_input = (1.0 - sigmas) * model_input + sigmas * noise
-                        with autocast():
-                            pipeline.transformer.set_adapter("learner")
-                            model_pred = transformer(
-                                hidden_states=noisy_model_input,
-                                timestep=timesteps,
-                                encoder_hidden_states=embeds,
-                                pooled_projections=pooled_embeds,
-                                return_dict=False,
-                            )[0]
-                        weighting = compute_loss_weighting_for_sd3(weighting_scheme='logit_normal', sigmas=sigmas)
-                        target = noise - model_input
-                        loss = torch.mean((sample["advantages"].view(-1,1,1,1) * weighting.float() * (model_pred.float() - target.float()) ** 2))
-                        info["loss"].append(loss)
-
-                        # backward pass
-                        accelerator.backward(loss)
-                        if accelerator.sync_gradients:
-                            accelerator.clip_grad_norm_(
-                                transformer.parameters(), config.train.max_grad_norm
-                            )
-                        optimizer.step()
-                        optimizer.zero_grad()
-
-                    # Checks if the accelerator has performed an optimization step behind the scenes
+                    # backward pass
+                    accelerator.backward(loss)
                     if accelerator.sync_gradients:
-                        # assert (j == train_timesteps[-1]) and (
-                        #     i + 1
-                        # ) % config.train.gradient_accumulation_steps == 0
-                        # log training-related stuff
-                        info = {k: torch.mean(torch.stack(v)) for k, v in info.items()}
-                        info = accelerator.reduce(info, reduction="mean")
-                        info.update({"epoch": epoch, "inner_epoch": inner_epoch})
-                        if accelerator.is_main_process:
-                            wandb.log(info, step=global_step)
-                        info = defaultdict(list)
-                        global_step += 1
-                        if config.train.ema:
-                            ema.step(transformer_trainable_parameters, global_step)
+                        accelerator.clip_grad_norm_(
+                            transformer.parameters(), config.train.max_grad_norm
+                        )
+                    optimizer.step()
+                    optimizer.zero_grad()
+
+                # Checks if the accelerator has performed an optimization step behind the scenes
+                if accelerator.sync_gradients:
+                    # assert (j == train_timesteps[-1]) and (
+                    #     i + 1
+                    # ) % config.train.gradient_accumulation_steps == 0
+                    # log training-related stuff
+                    info = {k: torch.mean(torch.stack(v)) for k, v in info.items()}
+                    info = accelerator.reduce(info, reduction="mean")
+                    info.update({"epoch": epoch, "inner_epoch": inner_epoch})
+                    if accelerator.is_main_process:
+                        wandb.log(info, step=global_step)
+                    info = defaultdict(list)
+                    global_step += 1
+                    if config.train.ema:
+                        ema.step(transformer_trainable_parameters, global_step)
         epoch+=1 
         
 if __name__ == "__main__":

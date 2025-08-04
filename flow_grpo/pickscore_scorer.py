@@ -1,4 +1,4 @@
-from transformers import AutoProcessor, AutoModel
+from transformers import CLIPProcessor, CLIPModel
 from PIL import Image
 import torch
 
@@ -9,8 +9,8 @@ class PickScoreScorer(torch.nn.Module):
         model_path = "yuvalkirstain/PickScore_v1"
         self.device = device
         self.dtype = dtype
-        self.processor = AutoProcessor.from_pretrained(processor_path)
-        self.model = AutoModel.from_pretrained(model_path).eval().to(device)
+        self.processor = CLIPProcessor.from_pretrained(processor_path)
+        self.model = CLIPModel.from_pretrained(model_path).eval().to(device)
         self.model = self.model.to(dtype=dtype)
         
     @torch.no_grad()
