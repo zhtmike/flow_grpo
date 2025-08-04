@@ -9,13 +9,18 @@
 
 ## Changelog
 
+**2025-08-04**
+
+* Adding support for **FLUX.1-Kontext-dev**. For the counting task, we use Geneval reward (to detect the number of objects) and CLIPScore (to ensure consistency between the edited and original images). After training with Flow-GRPO, the test accuracy consistently improves from 0.23 to 0.8. Moreover, since this is an edit task with a reference image, KL constraints are unnecessary, and we observe no degradation in the quality of the generated images.
+
+
 **2025-07-31**
 
 - Adding Flow-GRPO-S1.
 
 **2025-07-28**
 
-- Adding support for **FLUX**.
+- Adding support for **FLUX.1-dev**.
 - Adding support for CLIPScore as reward model.
 - Introducing `config.sample.same_latent` to control whether the same noise is reused for identical prompts, addressing [Issue #7](https://github.com/yifan123/flow_grpo/issues/7).
 
@@ -132,7 +137,7 @@ bash scripts/multi_node/sd3/main1.sh
 bash scripts/multi_node/sd3/main2.sh
 bash scripts/multi_node/sd3/main3.sh
 ```
-Multi-node training for Flux:
+Multi-node training for FLUX.1-dev:
 ```bash
 # Master node
 bash scripts/multi_node/flux/main.sh
@@ -140,6 +145,16 @@ bash scripts/multi_node/flux/main.sh
 bash scripts/multi_node/flux/main1.sh
 bash scripts/multi_node/flux/main2.sh
 bash scripts/multi_node/flux/main3.sh
+```
+Multi-node training for FLUX.1-Kontext-dev:
+
+```bash
+# Master node
+bash scripts/multi_node/flux_kontext/main.sh
+# Other nodes
+bash scripts/multi_node/flux_kontext/main1.sh
+bash scripts/multi_node/flux_kontext/main2.sh
+bash scripts/multi_node/flux_kontext/main3.sh
 ```
 #### DPO / OnlineDPO / SFT / OnlineSFT
  Single-node training:
