@@ -220,7 +220,7 @@ def eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerat
             disable=not accelerator.is_local_main_process,
             position=0,
         ):
-        prompts, prompt_metadata, images, _ = test_batch
+        prompts, prompt_metadata, ref_images, _ = test_batch
         prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
             prompts, 
             text_encoders, 
@@ -232,7 +232,7 @@ def eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerat
             with torch.no_grad():
                 images, _, _, _, _, _ = pipeline_with_logprob(
                     pipeline,
-                    image=images,
+                    image=ref_images,
                     prompt_embeds=prompt_embeds,
                     pooled_prompt_embeds=pooled_prompt_embeds,
                     num_inference_steps=config.sample.eval_num_steps,
@@ -243,7 +243,7 @@ def eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerat
                     max_area=config.resolution*config.resolution,
                     noise_level=0,
                 )
-        rewards = executor.submit(reward_fn, images, prompts, prompt_metadata, only_strict=False)
+        rewards = executor.submit(reward_fn, images, prompts, prompt_metadata, ref_images, only_strict=False)
         # yield to to make sure reward computation starts
         time.sleep(0)
         rewards, reward_metadata = rewards.result()
@@ -565,7 +565,7 @@ def main(_):
             position=0,
         ):
             train_sampler.set_epoch(epoch * config.sample.num_batches_per_epoch + i)
-            prompts, prompt_metadata, images, prompt_with_image_paths = next(train_iter)
+            prompts, prompt_metadata, ref_images, prompt_with_image_paths = next(train_iter)
 
             prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
                 prompts, 
@@ -592,7 +592,7 @@ def main(_):
                 with torch.no_grad():
                     images, latents, latent_ids, text_ids, log_probs, image_latents = pipeline_with_logprob(
                         pipeline,
-                        image=images,
+                        image=ref_images,
                         prompt_embeds=prompt_embeds,
                         pooled_prompt_embeds=pooled_prompt_embeds,
                         num_inference_steps=config.sample.num_steps,
@@ -603,7 +603,7 @@ def main(_):
                         max_area=config.resolution*config.resolution,
                         noise_level=config.sample.noise_level,
                         generator=generator
-                )
+                    )
 
             latents = torch.stack(latents, dim=1)  # (batch_size, num_steps + 1, 16, 96, 96)
             log_probs = torch.stack(log_probs, dim=1)  # shape after stack (batch_size, num_steps)
@@ -613,7 +613,7 @@ def main(_):
             )  # (batch_size, num_steps)
 
             # compute rewards asynchronously
-            rewards = executor.submit(reward_fn, images, prompts, prompt_metadata, only_strict=True)
+            rewards = executor.submit(reward_fn, images, prompts, prompt_metadata, ref_images, only_strict=True)
             # yield to to make sure reward computation starts
             time.sleep(0)
             samples.append(

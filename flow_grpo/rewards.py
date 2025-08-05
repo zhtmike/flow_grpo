@@ -58,6 +58,25 @@ def clip_score():
 
     return _fn
 
+def image_similarity_score(device):
+    from flow_grpo.clip_scorer import ClipScorer
+
+    scorer = ClipScorer(device=device).cuda()
+
+    def _fn(images, ref_images):
+        if not isinstance(images, torch.Tensor):
+            images = images.transpose(0, 3, 1, 2)  # NHWC -> NCHW
+            images = torch.tensor(images, dtype=torch.uint8)/255.0
+        if not isinstance(ref_images, torch.Tensor):
+            ref_images = [np.array(img) for img in ref_images]
+            ref_images = np.array(ref_images)
+            ref_images = ref_images.transpose(0, 3, 1, 2)  # NHWC -> NCHW
+            ref_images = torch.tensor(ref_images, dtype=torch.uint8)/255.0
+        scores = scorer.image_similarity(images, ref_images)
+        return scores, {}
+
+    return _fn
+
 def pickscore_score(device):
     from flow_grpo.pickscore_scorer import PickScoreScorer
 
@@ -383,13 +402,14 @@ def multi_score(device, score_dict):
         "unifiedreward": unifiedreward_score_sglang,
         "geneval": geneval_score,
         "clipscore": clip_score,
+        "image_similarity": image_similarity_score,
     }
     score_fns={}
     for score_name, weight in score_dict.items():
         score_fns[score_name] = score_functions[score_name](device) if 'device' in score_functions[score_name].__code__.co_varnames else score_functions[score_name]()
 
     # only_strict is only for geneval. During training, only the strict reward is needed, and non-strict rewards don't need to be computed, reducing reward calculation time.
-    def _fn(images, prompts, metadata, only_strict=True):
+    def _fn(images, prompts, metadata, ref_images=None, only_strict=True):
         total_scores = []
         score_details = {}
         
@@ -402,6 +422,8 @@ def multi_score(device, score_dict):
                     score_details[f'{key}_strict_accuracy'] = value
                 for key, value in group_rewards.items():
                     score_details[f'{key}_accuracy'] = value
+            elif score_name == "image_similarity":
+                scores, rewards = score_fns[score_name](images, ref_images)
             else:
                 scores, rewards = score_fns[score_name](images, prompts, metadata)
             score_details[score_name] = scores

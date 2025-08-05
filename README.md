@@ -11,7 +11,7 @@
 
 **2025-08-04**
 
-* Adding support for **FLUX.1-Kontext-dev**. For the counting task, we use Geneval reward (to detect the number of objects) and CLIPScore (to ensure consistency between the edited and original images). Please note that this support is only a functional implementation — our training set contains only 800 samples, and the goal is to verify that the pipeline works end-to-end. Making Flow-GRPO truly effective for edit tasks still requires continued exploration by the community.
+* Adding support for **FLUX.1-Kontext-dev**. For the counting task, we use Geneval reward to detect object counts and CLIP feature similarity to ensure consistency between the original and edited images. This implementation offers a runnable pipeline, but the training set contains only 800 samples. Making Flow-GRPO truly effective for editing tasks still requires further exploration by the community.
 
 
 **2025-07-31**

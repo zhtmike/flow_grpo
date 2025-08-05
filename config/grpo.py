@@ -453,7 +453,7 @@ def counting_flux_kontext():
     config.eval_freq = 30
     config.save_dir = 'logs/counting_edit/flux_kontext'
     config.reward_fn = {
-        "clipscore": 0.5,
+        "image_similarity": 0.5,
         "geneval": 0.5,
     }
     config.per_prompt_stat_tracking = True

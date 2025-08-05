@@ -52,6 +52,20 @@ class ClipScorer(torch.nn.Module):
             return outputs.logits_per_image.diagonal()/30, outputs.image_embeds
         return outputs.logits_per_image.diagonal()/30
 
+    @torch.no_grad()
+    def image_similarity(self, pixels, ref_pixels):
+        pixels = self._process(pixels).to(self.device)
+        ref_pixels = self._process(ref_pixels).to(self.device)
+
+        pixel_embeds = self.model.get_image_features(pixel_values=pixels)
+        ref_embeds = self.model.get_image_features(pixel_values=ref_pixels)
+
+        pixel_embeds = pixel_embeds / pixel_embeds.norm(p=2, dim=-1, keepdim=True)
+        ref_embeds = ref_embeds / ref_embeds.norm(p=2, dim=-1, keepdim=True)
+
+        sim = pixel_embeds @ ref_embeds.T
+        sim = torch.diagonal(sim, 0)
+        return sim
 
 
 def main():
