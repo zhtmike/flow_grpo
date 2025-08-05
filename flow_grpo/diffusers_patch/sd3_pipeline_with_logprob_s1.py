@@ -126,7 +126,7 @@ def pipeline_with_logprob(
 
     random.seed(process_index)
     if random_timestep is None:
-        random_timestep = random.randint(0, num_inference_steps-train_num_steps)
+        random_timestep = random.randint(0, 1)
 
 
     # 6. Prepare image embeddings
