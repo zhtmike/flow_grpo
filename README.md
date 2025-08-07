@@ -150,6 +150,11 @@ Multi-node training for FLUX.1-Kontext-dev:
 
 Please first download [generated\_images.zip](https://huggingface.co/datasets/jieliu/counting_edit/blob/main/generated_images.zip) and extract it into the `counting_edit` directory. You can also use the scripts in the `counting_edit` directory to generate the data yourself.
 
+Please install `diffusers` from the main branch to support `FLUX.1-Kontext-dev`:
+```bash
+pip install git+https://github.com/huggingface/diffusers.git
+```
+Then, run the scripts:
 ```bash
 # Master node
 bash scripts/multi_node/flux_kontext/main.sh
