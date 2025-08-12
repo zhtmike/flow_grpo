@@ -206,7 +206,7 @@ def pickscore_sd3_s1():
     config.train.gradient_accumulation_steps = config.sample.num_batches_per_epoch//2
     config.train.num_inner_epochs = 1
     config.train.timestep_fraction = 0.99
-    config.train.clip_range = 1e-4
+    config.train.clip_range = 1e-5
     config.train.beta = 0
     config.sample.global_std = True
     config.sample.noise_level = 5
@@ -370,6 +370,7 @@ def pickscore_flux():
     config.sample.same_latent = False
     config.train.ema = True
     config.sample.noise_level = 0.9
+    config.mixed_precision = "bf16"
     config.save_freq = 30 # epoch
     config.eval_freq = 30
     config.save_dir = 'logs/pickscore/flux-group24'
@@ -409,6 +410,7 @@ def pickscore_flux_8gpu():
     config.sample.same_latent = False
     config.train.ema = True
     config.sample.noise_level = 0.9
+    config.mixed_precision = "bf16"
     config.save_freq = 30 # epoch
     config.eval_freq = 30
     config.save_dir = 'logs/pickscore/flux-group24-8gpu'
@@ -449,6 +451,7 @@ def counting_flux_kontext():
     config.sample.same_latent = False
     config.train.ema = True
     config.sample.noise_level = 0.9
+    config.mixed_precision = "bf16"
     config.save_freq = 30 # epoch
     config.eval_freq = 30
     config.save_dir = 'logs/counting_edit/flux_kontext'
