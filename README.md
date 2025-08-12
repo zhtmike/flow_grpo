@@ -35,6 +35,8 @@
 
 * When using **Flow-GRPO-S1**, set a relatively small `clip_range`, otherwise training may crash.
 
+* When implementing a new model, please check whether using different batch sizes leads to slight differences in the output. SD3 has this issue, which is why I ensure that the batch size for training is the same as that used for data collection.
+
 
 ## Flow-GRPO-S1
 We propose Flow-GRPO-S1, an accelerated variant of Flow-GRPO that requires training on **only a single denoising step** per trajectory. For each prompt, we first generate a deterministic trajectory using ODE sampling. At a randomly chosen intermediate step, we inject noise and switch to SDE sampling to generate a group. The rest of the process continues with ODE sampling. This confines stochasticity to a single step, allowing training to focus solely on that step. This one-step training idea was primarily proposed by [Ziyang Yuan](https://scholar.google.com/citations?user=fWxWEzsAAAAJ&hl=en) during our discussions in early June. 
