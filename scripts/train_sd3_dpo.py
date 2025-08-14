@@ -409,6 +409,7 @@ def main(_):
         else:
             pipeline.transformer = get_peft_model(pipeline.transformer, transformer_lora_config, adapter_name="learner")
             pipeline.transformer = get_peft_model(pipeline.transformer, transformer_lora_config, adapter_name="ref")
+            pipeline.transformer.set_adapter("learner")
             
     
     transformer = pipeline.transformer
@@ -629,15 +630,6 @@ def main(_):
                         width=config.resolution, 
                         noise_level=config.sample.noise_level,
                     )
-
-            latents = torch.stack(
-                latents, dim=1
-            )  # (batch_size, num_steps + 1, 16, 96, 96)
-            log_probs = torch.stack(log_probs, dim=1)  # shape after stack (batch_size, num_steps)
-
-            timesteps = pipeline.scheduler.timesteps.repeat(
-                config.sample.train_batch_size, 1
-            )  # (batch_size, num_steps)
 
             # compute rewards asynchronously
             rewards = executor.submit(reward_fn, images, prompts, prompt_metadata, only_strict=True)
