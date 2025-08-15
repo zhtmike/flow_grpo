@@ -17,8 +17,8 @@ import numpy as np
 import flow_grpo.prompts
 import flow_grpo.rewards
 from flow_grpo.stat_tracking import PerPromptStatTracker
-from flow_grpo.diffusers_patch.sd3_pipeline_with_logprob_s1 import pipeline_with_logprob
-from flow_grpo.diffusers_patch.sd3_sde_with_logprob_s1 import sde_step_with_logprob
+from flow_grpo.diffusers_patch.sd3_pipeline_with_logprob_fast import pipeline_with_logprob
+from flow_grpo.diffusers_patch.sd3_sde_with_logprob import sde_step_with_logprob
 from flow_grpo.diffusers_patch.train_dreambooth_lora_sd3 import encode_prompt
 import torch
 import wandb
@@ -249,6 +249,7 @@ def eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerat
                     noise_level=0,
                     mini_num_image_per_prompt=1,
                     process_index=accelerator.process_index,
+                    sample_num_steps=config.sample.num_steps,
                 )
         rewards = executor.submit(reward_fn, images, prompts, prompt_metadata, only_strict=False)
         # yield to to make sure reward computation starts
@@ -644,6 +645,7 @@ def main(_):
                         mini_num_image_per_prompt=config.sample.mini_num_image_per_prompt,
                         train_num_steps=config.sample.train_num_steps,
                         process_index=accelerator.process_index,
+                        sample_num_steps=config.sample.num_steps,
                     )
 
             latents = torch.stack(
