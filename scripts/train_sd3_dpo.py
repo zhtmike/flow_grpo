@@ -290,11 +290,6 @@ def eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerat
     if config.train.ema:
         ema.copy_temp_to(transformer_trainable_parameters)
 
-def unwrap_model(model, accelerator):
-    model = accelerator.unwrap_model(model)
-    model = model._orig_mod if is_compiled_module(model) else model
-    return model
-
 def save_ckpt(save_dir, transformer, global_step, accelerator, ema, transformer_trainable_parameters, config):
     save_root = os.path.join(save_dir, "checkpoints", f"checkpoint-{global_step}")
     save_root_lora = os.path.join(save_root, "lora")
@@ -302,7 +297,8 @@ def save_ckpt(save_dir, transformer, global_step, accelerator, ema, transformer_
     if accelerator.is_main_process:
         if config.train.ema:
             ema.copy_ema_to(transformer_trainable_parameters, store_temp=True)
-        unwrap_model(transformer, accelerator).save_pretrained(save_root_lora)
+        transformer.delete_adapters('ref')
+        transformer.base_model.model.save_pretrained(save_root_lora)
         if config.train.ema:
             ema.copy_temp_to(transformer_trainable_parameters)
 
