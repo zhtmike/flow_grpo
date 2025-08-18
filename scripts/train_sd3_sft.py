@@ -299,8 +299,7 @@ def save_ckpt(save_dir, transformer, global_step, accelerator, ema, transformer_
     if accelerator.is_main_process:
         if config.train.ema:
             ema.copy_ema_to(transformer_trainable_parameters, store_temp=True)
-        transformer.delete_adapters('ref')
-        transformer.base_model.model.save_pretrained(save_root_lora)
+        transformer.module.save_pretrained(save_root_lora)
         if config.train.ema:
             ema.copy_temp_to(transformer_trainable_parameters)
 
@@ -408,7 +407,7 @@ def main(_):
             pipeline.transformer = get_peft_model(pipeline.transformer, transformer_lora_config, adapter_name="learner")
             pipeline.transformer = get_peft_model(pipeline.transformer, transformer_lora_config, adapter_name="ref")
             pipeline.transformer.set_adapter("learner")
-            
+
     
     transformer = pipeline.transformer
     transformer_trainable_parameters = []
