@@ -59,7 +59,7 @@ Flow-GRPO-Fast achieves significant efficiency gains:
 
 - Sampling before branching requires only a single prompt without group expansion, further speeding up data collection.
 
-Experiments on PickScore show that Flow-GRPO-Fast matches the reward performance of Flow-GRPO while offering faster training speed. The x-axis in the figure represents training epochs. Flow-GRPO-Fast trains only 2 steps per iteration, compared to 10 steps for Flow-GRPO, making its training process significantly faster. 
+Experiments on PickScore show that Flow-GRPO-Fast matches the reward performance of Flow-GRPO while offering faster training speed. The x-axis in the figure represents training epochs. Flow-GRPO-Fast with 2 training steps per iteration performs better than Flow-GRPO, while Flow-GRPO-Fast with only 1 training step per iteration performs slightly worse than Flow-GRPO. In both cases, compared to Flow-GRPO’s 10 training steps per iteration, the training process is significantly faster.
 
 <p align="center">
   <img src="flow_grpo/assets/flow_grpo_fast.png" alt="Flow-GRPO-Fast Illustration" width=450"/>
@@ -259,11 +259,21 @@ Additionally, setting `config.train.gradient_accumulation_steps = config.sample.
 This repo is based on [ddpo-pytorch](https://github.com/kvablack/ddpo-pytorch) and [diffusers](https://github.com/huggingface/diffusers). We thank the authors for their valuable contributions to the AIGC community. Special thanks to Kevin Black for the excellent *ddpo-pytorch* repo.
 
 ## ⭐Citation
+If you find Flow-GRPO useful for your research or projects, we would greatly appreciate it if you could cite the following paper:
 ```
 @article{liu2025flow,
   title={Flow-grpo: Training flow matching models via online rl},
   author={Liu, Jie and Liu, Gongye and Liang, Jiajun and Li, Yangguang and Liu, Jiaheng and Wang, Xintao and Wan, Pengfei and Zhang, Di and Ouyang, Wanli},
   journal={arXiv preprint arXiv:2505.05470},
+  year={2025}
+}
+```
+If you find Flow-DPO useful for your research or projects, we would greatly appreciate it if you could cite the following paper:
+```
+@article{liu2025improving,
+  title={Improving video generation with human feedback},
+  author={Liu, Jie and Liu, Gongye and Liang, Jiajun and Yuan, Ziyang and Liu, Xiaokun and Zheng, Mingwu and Wu, Xiele and Wang, Qiulin and Qin, Wenyu and Xia, Menghan and others},
+  journal={arXiv preprint arXiv:2501.13918},
   year={2025}
 }
 ```
