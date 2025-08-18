@@ -59,7 +59,7 @@ Flow-GRPO-Fast achieves significant efficiency gains:
 
 - Sampling before branching requires only a single prompt without group expansion, further speeding up data collection.
 
-Experiments on PickScore show that Flow-GRPO-Fast matches the reward performance of Flow-GRPO while offering faster training speed. The x-axis in the figure represents training iterations. Flow-GRPO-Fast trains only 2 steps per iteration, compared to 10 steps for Flow-GRPO, making its training process significantly faster.
+Experiments on PickScore show that Flow-GRPO-Fast matches the reward performance of Flow-GRPO while offering faster training speed. The x-axis in the figure represents training epochs. Flow-GRPO-Fast trains only 2 steps per iteration, compared to 10 steps for Flow-GRPO, making its training process significantly faster. 
 
 <p align="center">
   <img src="flow_grpo/assets/flow_grpo_fast.png" alt="Flow-GRPO-Fast Illustration" width=450"/>
