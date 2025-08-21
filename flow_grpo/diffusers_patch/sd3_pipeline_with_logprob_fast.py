@@ -115,7 +115,7 @@ def pipeline_with_logprob(
         device,
         generator,
         latents,
-    )
+    ).float()
 
     # 5. Prepare timesteps
     scheduler_kwargs = {}
@@ -175,7 +175,7 @@ def pipeline_with_logprob(
                 joint_attention_kwargs=self.joint_attention_kwargs,
                 return_dict=False,
             )[0]
-            noise_pred = noise_pred.to(prompt_embeds.dtype)
+            # noise_pred = noise_pred.to(prompt_embeds.dtype)
             # perform guidance
             if self.do_classifier_free_guidance:
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
@@ -191,8 +191,8 @@ def pipeline_with_logprob(
                 noise_level=cur_noise_level,
             )
                 
-            if latents.dtype != latents_dtype:
-                latents = latents.to(latents_dtype)
+            # if latents.dtype != latents_dtype:
+            #     latents = latents.to(latents_dtype)
             
             if i >= random_timestep and i < random_timestep + train_num_steps:
                 all_latents.append(latents)
