@@ -145,6 +145,15 @@ pip install git+https://github.com/openai/CLIP.git
 ```
 
 ### 4. Start Training
+If the GPU memory is insufficient, you can use DeepSpeed Zero2 or Zero3.
+
+```bash
+# zero2
+accelerate launch --config_file scripts/accelerate_configs/deepspeed_zero2.yaml
+# zero3
+accelerate launch --config_file scripts/accelerate_configs/deepspeed_zero3.yaml
+```
+
 #### GRPO
 Single-node training:
 ```bash
