@@ -166,7 +166,6 @@ def pipeline_with_logprob(
         generator,
         latents,
     )
-    latents = latents.float()
     if image_ids is not None:
         latent_ids = torch.cat([latent_ids, image_ids], dim=0)  # dim 0 is sequence dimension
     sigmas = np.linspace(1.0, 1 / num_inference_steps, num_inference_steps) if sigmas is None else sigmas
@@ -226,8 +225,6 @@ def pipeline_with_logprob(
                 breakpoint()
                 print("log_prob is nan")
             noise_pred = noise_pred[:, : latents.size(1)]
-
-            # noise_pred = noise_pred.to(prompt_embeds.dtype)
             latents_dtype = latents.dtype
 
             latents, log_prob, prev_latents_mean, std_dev_t = sde_step_with_logprob(
@@ -238,8 +235,8 @@ def pipeline_with_logprob(
                 noise_level=noise_level,
             )
             
-            # if latents.dtype != latents_dtype:
-            #     latents = latents.to(latents_dtype)
+            if latents.dtype != latents_dtype:
+                latents = latents.to(latents_dtype)
             all_latents.append(latents)
             all_log_probs.append(log_prob)
             # call the callback, if provided
