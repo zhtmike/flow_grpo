@@ -25,6 +25,8 @@ def get_config():
     config.use_lora = True
     config.dataset = ""
     config.resolution = 768
+    config.activation_checkpointing = False
+    config.fsdp_optimizer_offload = False
 
     ###### Pretrained Model ######
     config.pretrained = pretrained = ml_collections.ConfigDict()
@@ -54,6 +56,10 @@ def get_config():
     sample.noise_level = 0.7
     # Whether to use the same noise for the same prompt
     sample.same_latent = False
+    # sde window size
+    sample.sde_window_size = 2
+    # sde window range
+    sample.sde_window_range = (0, 10)
     
     ###### Training ######
     config.train = train = ml_collections.ConfigDict()

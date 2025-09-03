@@ -8,7 +8,15 @@
 </div>
 
 ## Changelog
+<details open>
+<summary><strong>2025-09-03</strong></summary>
 
+* Adding support for **Qwen-Image**.
+
+</details>
+
+<details>
+<summary><strong>Update History</strong></summary>
 **2025-08-15**
 
 * Thanks [Jing Wang](https://scholar.google.com.hk/citations?user=Q9Np_KQAAAAJ&hl=zh-CN) for adding **Wan2.1**. Training command
@@ -40,6 +48,7 @@ accelerate launch --config_file scripts/accelerate_configs/multi_gpu.yaml --num_
 
 - 🔥We showcase image examples from three tasks and their training evolution at https://gongyeliu.github.io/Flow-GRPO. Check them out!
 - 🔥We now provide an online demo for all three tasks at https://huggingface.co/spaces/jieliu/SD3.5-M-Flow-GRPO. You're welcome to try it out!
+</details>
 
 ## FAQ
 
@@ -155,14 +164,15 @@ accelerate launch --config_file scripts/accelerate_configs/deepspeed_zero3.yaml
 ```
 
 #### GRPO
-Single-node training:
+
+- Single-node training:
 ```bash
 # sd3
 bash scripts/single_node/grpo.sh
 # flux
 bash scripts/single_node/grpo_flux.sh
 ```
-Multi-node training for SD3:
+- Multi-node training for SD3:
 ```bash
 # Master node
 bash scripts/multi_node/sd3/main.sh
@@ -171,7 +181,7 @@ bash scripts/multi_node/sd3/main1.sh
 bash scripts/multi_node/sd3/main2.sh
 bash scripts/multi_node/sd3/main3.sh
 ```
-Multi-node training for FLUX.1-dev:
+- Multi-node training for FLUX.1-dev:
 ```bash
 # Master node
 bash scripts/multi_node/flux/main.sh
@@ -180,7 +190,7 @@ bash scripts/multi_node/flux/main1.sh
 bash scripts/multi_node/flux/main2.sh
 bash scripts/multi_node/flux/main3.sh
 ```
-Multi-node training for FLUX.1-Kontext-dev:
+- Multi-node training for FLUX.1-Kontext-dev:
 
 Please first download [generated\_images.zip](https://huggingface.co/datasets/jieliu/counting_edit/blob/main/generated_images.zip) and extract it into the `counting_edit` directory. You can also use the scripts in the `counting_edit` directory to generate the data yourself.
 
@@ -198,6 +208,26 @@ bash scripts/multi_node/flux_kontext/main1.sh
 bash scripts/multi_node/flux_kontext/main2.sh
 bash scripts/multi_node/flux_kontext/main3.sh
 ```
+
+
+- Multi-node training for Qwen-Image:
+
+In the implementation of Qwen-Image, we have unified Flow-GRPO and Flow-GRPO-Fast. You can control the size of the SDE window with `config.sample.sde_window_size`, and adjust the position of the window with `config.sample.sde_window_range`.
+
+Please install `diffusers` from the main branch to support `Qwen-Image`:
+```bash
+pip install git+https://github.com/huggingface/diffusers.git
+```
+Then run the scripts:
+```bash
+# Master node
+bash scripts/multi_node/qwenimage/main.sh 0
+# Other nodes
+bash scripts/multi_node/qwenimage/main.sh 1
+bash scripts/multi_node/qwenimage/main.sh 2
+bash scripts/multi_node/qwenimage/main.sh 3
+```
+
 #### DPO / OnlineDPO / SFT / OnlineSFT
  Single-node training:
 ```bash
