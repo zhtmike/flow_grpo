@@ -196,7 +196,7 @@ def create_generator(prompts, base_seed):
 
         
 def compute_log_prob(transformer, pipeline, sample, j, config, rank):
-    calculated_width, calculated_height, _ = calculate_dimensions(512 * 512, 1)
+    calculated_width, calculated_height, _ = calculate_dimensions(1024 * 1024, 1)
     img_shapes = [
         [
             (1, config.resolution // pipeline.vae_scale_factor // 2, config.resolution // pipeline.vae_scale_factor // 2),

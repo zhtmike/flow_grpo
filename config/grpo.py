@@ -642,8 +642,8 @@ def counting_qwenimage_edit():
     config.eval_freq = 15
     config.save_dir = 'logs/pickscore/qwenimage_edit'
     config.reward_fn = {
-        "image_similarity": 0.5,
-        "geneval": 0.5,
+        # "image_similarity": 0.5,
+        "geneval": 1.0,
     }
     config.per_prompt_stat_tracking = True
     return config
@@ -685,8 +685,8 @@ def counting_qwenimage_edit_8gpu():
     config.eval_freq = 15
     config.save_dir = 'logs/pickscore/qwenimage_edit'
     config.reward_fn = {
-        "image_similarity": 0.5,
-        "geneval": 0.5,
+        # "image_similarity": 0.5,
+        "geneval": 1.0,
     }
     config.per_prompt_stat_tracking = True
     return config
