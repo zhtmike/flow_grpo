@@ -9,9 +9,9 @@
 
 ## Changelog
 <details open>
-<summary><strong>2025-09-03</strong></summary>
+<summary><strong>2025-09-04</strong></summary>
 
-* Adding support for **Qwen-Image**.
+* Adding support for **Qwen-Image** and **Qwen-Image-Edit**.
 
 </details>
 
@@ -233,6 +233,25 @@ Using the provided configuration, the resulting reward curve of Qwen-Image on th
 <p align="center">
   <img src="flow_grpo/assets/flow_grpo_fast_qwenimage.png" alt="Flow-GRPO-Fast Illustration" width=350"/>
 </p>
+
+
+- Multi-node training for Qwen-Image-Edit:
+
+Same as Flux Kontext, please first download [generated\_images.zip](https://huggingface.co/datasets/jieliu/counting_edit/blob/main/generated_images.zip) and extract it into the `counting_edit` directory. You can also use the scripts in the `counting_edit` directory to generate the data yourself.
+
+Please install `diffusers` from the main branch to support `Qwen-Image-Edit`:
+```bash
+pip install git+https://github.com/huggingface/diffusers.git
+```
+Then run the scripts:
+```bash
+# Master node
+bash scripts/multi_node/qwenimage_edit/main.sh 0
+# Other nodes
+bash scripts/multi_node/qwenimage_edit/main.sh 1
+bash scripts/multi_node/qwenimage_edit/main.sh 2
+bash scripts/multi_node/qwenimage_edit/main.sh 3
+```
 
 #### DPO / OnlineDPO / SFT / OnlineSFT
  Single-node training:
