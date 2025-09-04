@@ -38,7 +38,7 @@ def pipeline_with_logprob(
     sde_window_range: tuple[int, int] = (0, 5),
 ):
     image_size = image[0].size if isinstance(image, list) else image.size
-    calculated_width, calculated_height, _ = calculate_dimensions(512 * 512, image_size[0] / image_size[1])
+    calculated_width, calculated_height, _ = calculate_dimensions(width * height, image_size[0] / image_size[1])
     height = height or calculated_height
     width = width or calculated_width
     multiple_of = self.vae_scale_factor * 2

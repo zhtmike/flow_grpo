@@ -5,7 +5,7 @@ from diffusers import QwenImageEditPipeline
 from flow_grpo.diffusers_patch.qwenimage_edit_pipeline_with_logprob import pipeline_with_logprob
 import importlib
 
-model_id = "/Qwen/Qwen-Image-Edit"
+model_id = "Qwen/Qwen-Image-Edit"
 device = "cuda"
 
 pipe = QwenImageEditPipeline.from_pretrained(model_id, torch_dtype=torch.bfloat16)
