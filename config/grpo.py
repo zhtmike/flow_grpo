@@ -517,7 +517,7 @@ def counting_flux_kontext():
     return config
 
 def pickscore_qwenimage():
-    gpu_number=64
+    gpu_number=32
     config = compressibility()
     config.dataset = os.path.join(os.getcwd(), "dataset/pickscore")
 
