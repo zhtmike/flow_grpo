@@ -226,6 +226,7 @@ def eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerat
             position=0,
         ):
         prompts, prompt_metadata, ref_images, _ = test_batch
+        ref_images = [ref_image.resize((config.resolution, config.resolution)) for ref_image in ref_images]
         prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
             prompts, 
             text_encoders, 
@@ -578,6 +579,7 @@ def main(_):
         ):
             train_sampler.set_epoch(epoch * config.sample.num_batches_per_epoch + i)
             prompts, prompt_metadata, ref_images, prompt_with_image_paths = next(train_iter)
+            ref_images = [ref_image.resize((config.resolution, config.resolution)) for ref_image in ref_images]
 
             prompt_embeds, pooled_prompt_embeds = compute_text_embeddings(
                 prompts, 

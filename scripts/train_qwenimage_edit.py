@@ -257,6 +257,7 @@ def eval(pipeline, test_dataloader, config, rank, local_rank, world_size, device
             position=0,
         ):
         prompts, prompt_metadata, ref_images, _ = test_batch
+        ref_images = [ref_image.resize((config.resolution, config.resolution)) for ref_image in ref_images]
         with autocast():
             with torch.no_grad():
                 collected_data = pipeline_with_logprob(
@@ -610,6 +611,7 @@ def main(_):
         ):
             train_sampler.set_epoch(epoch * config.sample.num_batches_per_epoch + i)
             prompts, prompt_metadata, ref_images, prompt_with_image_paths = next(train_iter)
+            ref_images = [ref_image.resize((config.resolution, config.resolution)) for ref_image in ref_images]
             prompt_ids = pipeline.tokenizer(
                 prompt_with_image_paths,
                 padding="max_length",
