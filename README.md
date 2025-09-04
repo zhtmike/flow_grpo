@@ -17,6 +17,7 @@
 
 <details>
 <summary><strong>Update History</strong></summary>
+
 **2025-08-15**
 
 * Thanks [Jing Wang](https://scholar.google.com.hk/citations?user=Q9Np_KQAAAAJ&hl=zh-CN) for adding **Wan2.1**. Training command
@@ -227,6 +228,11 @@ bash scripts/multi_node/qwenimage/main.sh 1
 bash scripts/multi_node/qwenimage/main.sh 2
 bash scripts/multi_node/qwenimage/main.sh 3
 ```
+Using the provided configuration, the resulting reward curve of Qwen-Image on the test set is shown below.
+
+<p align="center">
+  <img src="flow_grpo/assets/flow_grpo_fast_qwenimage.png" alt="Flow-GRPO-Fast Illustration" width=350"/>
+</p>
 
 #### DPO / OnlineDPO / SFT / OnlineSFT
  Single-node training:
