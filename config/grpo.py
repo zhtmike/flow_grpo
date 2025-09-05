@@ -631,9 +631,9 @@ def counting_qwenimage_edit():
     config.sample.global_std = True
     config.sample.same_latent = False
     config.train.ema = False
-    config.sample.noise_level = 1.8
-    config.sample.sde_window_size = 2
-    config.sample.sde_window_range = (0, config.sample.num_steps//2)
+    config.sample.noise_level = 1.0
+    config.sample.sde_window_size = 0
+    # config.sample.sde_window_range = (0, config.sample.num_steps//2)
     config.mixed_precision = "bf16"
     config.use_lora = True
     config.activation_checkpointing = True
@@ -642,8 +642,8 @@ def counting_qwenimage_edit():
     config.eval_freq = 15
     config.save_dir = 'logs/pickscore/qwenimage_edit'
     config.reward_fn = {
-        # "image_similarity": 0.5,
-        "geneval": 1.0,
+        "image_similarity": 0.2,
+        "geneval": 0.8,
     }
     config.per_prompt_stat_tracking = True
     return config
