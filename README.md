@@ -253,6 +253,13 @@ bash scripts/multi_node/qwenimage_edit/main.sh 2
 bash scripts/multi_node/qwenimage_edit/main.sh 3
 ```
 
+Using the provided configuration, the resulting reward curve of Qwen-Image-Edit on the test set is shown below.
+
+<p align="center">
+  <img src="flow_grpo/assets/flow_grpo_qwenimageedit.png" alt="Flow-GRPO-Fast Illustration" width=350"/>
+</p>
+
+
 #### DPO / OnlineDPO / SFT / OnlineSFT
  Single-node training:
 ```bash
