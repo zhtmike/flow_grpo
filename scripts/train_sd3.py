@@ -17,9 +17,9 @@ import numpy as np
 import flow_grpo.prompts
 import flow_grpo.rewards
 from flow_grpo.stat_tracking import PerPromptStatTracker
-from flow_grpo.diffusers_patch.sd3_pipeline_with_logprob import pipeline_with_logprob
-from flow_grpo.diffusers_patch.sd3_sde_with_logprob import sde_step_with_logprob
 from flow_grpo.diffusers_patch.train_dreambooth_lora_sd3 import encode_prompt
+from flow_grpo.pipelines import StableDiffusion3PipelineWithSDELogProb, sd3_compute_log_prob
+from flow_grpo.schedulers import FlowMatchEulerSDEDiscreteScheduler
 import torch
 import wandb
 from functools import partial
@@ -203,16 +203,15 @@ def compute_log_prob(transformer, pipeline, sample, j, embeds, pooled_embeds, co
         )[0]
     
     # compute the log prob of next_latents given latents under the current model
-    prev_sample, log_prob, prev_sample_mean, std_dev_t = sde_step_with_logprob(
-        pipeline.scheduler,
+    prev_sample_mean, std_dev_t, dt = pipeline.scheduler.compute_prev_sample_mean(
         noise_pred.float(),
-        sample["timesteps"][:, j],
         sample["latents"][:, j].float(),
         prev_sample=sample["next_latents"][:, j].float(),
         noise_level=config.sample.noise_level,
     )
+    log_prob = sd3_compute_log_prob(prev_sample_mean, std_dev_t, dt)
 
-    return prev_sample, log_prob, prev_sample_mean, std_dev_t
+    return log_prob, prev_sample_mean, std_dev_t
 
 def eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerator, global_step, reward_fn, executor, autocast, num_train_timesteps, ema, transformer_trainable_parameters):
     if config.train.ema:
@@ -244,8 +243,7 @@ def eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerat
             sample_neg_pooled_prompt_embeds = sample_neg_pooled_prompt_embeds[:len(prompt_embeds)]
         with autocast():
             with torch.no_grad():
-                images, _, _ = pipeline_with_logprob(
-                    pipeline,
+                images, _, _ = pipeline(
                     prompt_embeds=prompt_embeds,
                     pooled_prompt_embeds=pooled_prompt_embeds,
                     negative_prompt_embeds=sample_neg_prompt_embeds,
@@ -253,6 +251,7 @@ def eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerat
                     num_inference_steps=config.sample.eval_num_steps,
                     guidance_scale=config.sample.guidance_scale,
                     output_type="pt",
+                    return_dict=False,
                     height=config.resolution,
                     width=config.resolution, 
                     noise_level=0,
@@ -374,9 +373,18 @@ def main(_):
     set_seed(config.seed, device_specific=True)
 
     # load scheduler, tokenizer and models.
-    pipeline = StableDiffusion3Pipeline.from_pretrained(
+    pipeline = StableDiffusion3PipelineWithSDELogProb.from_pretrained(
         config.pretrained.model
     )
+
+    # replace scheduler with FlowMatchEulerSDEDiscreteScheduler
+    scheduler_config = FlowMatchEulerSDEDiscreteScheduler.load_config(
+        config.pretrained.model, subfolder="scheduler"
+    )
+    pipeline.scheduler = FlowMatchEulerSDEDiscreteScheduler.from_config(
+        scheduler_config
+    )
+
     # freeze parameters of models to save more memory
     pipeline.vae.requires_grad_(False)
     pipeline.text_encoder.requires_grad_(False)
@@ -640,8 +648,7 @@ def main(_):
                 generator = None
             with autocast():
                 with torch.no_grad():
-                    images, latents, log_probs = pipeline_with_logprob(
-                        pipeline,
+                    images, latents, log_probs = pipeline(
                         prompt_embeds=prompt_embeds,
                         pooled_prompt_embeds=pooled_prompt_embeds,
                         negative_prompt_embeds=sample_neg_prompt_embeds,
@@ -649,6 +656,7 @@ def main(_):
                         num_inference_steps=config.sample.num_steps,
                         guidance_scale=config.sample.guidance_scale,
                         output_type="pt",
+                        return_dict=False,
                         height=config.resolution,
                         width=config.resolution, 
                         noise_level=config.sample.noise_level,
