@@ -30,6 +30,9 @@ from peft import LoraConfig, get_peft_model, set_peft_model_state_dict, PeftMode
 import random
 from torch.utils.data import Dataset, DataLoader, Sampler
 from flow_grpo.ema import EMAModuleWrapper
+import contextlib
+import cache_dit
+from cache_dit import ForwardPattern, BlockAdapter
 
 tqdm = partial(tqdm.tqdm, dynamic_ncols=True)
 
@@ -213,7 +216,7 @@ def compute_log_prob(transformer, pipeline, sample, j, embeds, pooled_embeds, co
 
     return log_prob, prev_sample_mean, std_dev_t
 
-def eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerator, global_step, reward_fn, executor, autocast, num_train_timesteps, ema, transformer_trainable_parameters):
+def eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerator, global_step, reward_fn, executor, autocast, num_train_timesteps, ema, transformer_trainable_parameters, epoch):
     if config.train.ema:
         ema.copy_ema_to(transformer_trainable_parameters, store_temp=True)
     neg_prompt_embed, neg_pooled_prompt_embed = compute_text_embeddings([""], text_encoders, tokenizers, max_sequence_length=128, device=accelerator.device)
@@ -283,7 +286,9 @@ def eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerat
 
     all_rewards = {key: np.concatenate(value) for key, value in all_rewards.items()}
     if accelerator.is_main_process:
-        with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = f"output/{epoch}"
+        os.makedirs(tmpdir, exist_ok=True)
+        with contextlib.nullcontext():
             num_samples = min(15, len(last_batch_images_gather))
             # sample_indices = random.sample(range(len(images)), num_samples)
             sample_indices = range(num_samples)
@@ -448,6 +453,16 @@ def main(_):
             pipeline.transformer = get_peft_model(pipeline.transformer, transformer_lora_config)
     
     transformer = pipeline.transformer
+
+    cache_dit.enable_cache(
+        BlockAdapter(
+            pipe=pipeline,
+            transformer=pipeline.transformer.base_model.model,
+            blocks=pipeline.transformer.base_model.model.transformer_blocks,
+            forward_pattern=ForwardPattern.Pattern_1,
+        )
+    )
+
     transformer_trainable_parameters = list(filter(lambda p: p.requires_grad, transformer.parameters()))
     # This ema setting affects the previous 20 × 8 = 160 steps on average.
     ema = EMAModuleWrapper(transformer_trainable_parameters, decay=0.9, update_step_interval=8, device=accelerator.device)
@@ -609,7 +624,7 @@ def main(_):
         #################### EVAL ####################
         pipeline.transformer.eval()
         if epoch % config.eval_freq == 0:
-            eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerator, global_step, eval_reward_fn, executor, autocast, num_train_timesteps, ema, transformer_trainable_parameters)
+            eval(pipeline, test_dataloader, text_encoders, tokenizers, config, accelerator, global_step, eval_reward_fn, executor, autocast, num_train_timesteps, ema, transformer_trainable_parameters, epoch)
         if epoch % config.save_freq == 0 and epoch > 0 and accelerator.is_main_process:
             save_ckpt(config.save_dir, transformer, global_step, accelerator, ema, transformer_trainable_parameters, config)
 
