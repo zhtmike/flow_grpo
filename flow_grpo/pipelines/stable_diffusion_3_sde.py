@@ -326,7 +326,7 @@ class StableDiffusion3PipelineWithSDELogProb(StableDiffusion3Pipeline):
         self.maybe_free_model_hooks()
 
         if not return_dict:
-            return (image,)
+            return (image, all_latents, all_log_probs)
 
         return StableDiffusionPipelineOutputeWithSDELogProb(
             images=image, all_latents=all_latents, all_log_probs=all_log_probs
