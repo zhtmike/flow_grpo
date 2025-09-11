@@ -674,7 +674,7 @@ def counting_qwenimage_edit_fast():
     config.sample.same_latent = False
     config.train.ema = False
     config.sample.noise_level = 1.5
-    config.sample.sde_window_size = 3
+    config.sample.sde_window_size = 4
     config.sample.sde_window_range = (0, config.sample.num_steps//2)
     config.mixed_precision = "bf16"
     config.use_lora = True
