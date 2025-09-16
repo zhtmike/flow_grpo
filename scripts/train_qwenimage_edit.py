@@ -852,11 +852,7 @@ def main(_):
                         prev_sample, log_prob, prev_sample_mean, std_dev_t = compute_log_prob(transformer, pipeline, sample, j, config, rank)
                         if config.train.beta > 0:
                             with torch.no_grad():
-                                if config.use_lora:
-                                    with transformer.module.disable_adapter():
-                                        _, _, prev_sample_mean_ref, _ = compute_log_prob(transformer, pipeline, sample, j, config, rank)
-                                else:
-                                    _, _, prev_sample_mean_ref, _ = compute_log_prob(transformer_ref, pipeline, sample, j, config, rank)
+                                _, _, prev_sample_mean_ref, _ = compute_log_prob(transformer_ref, pipeline, sample, j, config, rank)
                     # grpo logic
                     advantages = torch.clamp(
                         sample["advantages"][:, j],
