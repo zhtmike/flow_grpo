@@ -9,14 +9,18 @@
 
 ## Changelog
 <details open>
-<summary><strong>2025-09-04</strong></summary>
+<summary><strong>2025-10-14</strong></summary>
 
-* Adding support for **Qwen-Image** and **Qwen-Image-Edit**.
+* Refactor FlowGRPO-Fast for compatibility with FlowGRPO, add CPS sampling and No-CFG training on SD3.
 
 </details>
 
 <details>
 <summary><strong>Update History</strong></summary>
+
+**2025-08-15**
+
+* Adding support for **Qwen-Image** and **Qwen-Image-Edit**.
 
 **2025-08-15**
 
@@ -51,13 +55,12 @@ accelerate launch --config_file scripts/accelerate_configs/multi_gpu.yaml --num_
 - 🔥We now provide an online demo for all three tasks at https://huggingface.co/spaces/jieliu/SD3.5-M-Flow-GRPO. You're welcome to try it out!
 </details>
 
-## FAQ
-
-* Please use **fp16** for training whenever possible, as it provides higher precision than bf16, resulting in smaller log-probability errors between data collection and training. For Flux and Wan, becauase fp16 inference cannot produce valid images or videos, you will have to use **bf16** for training. Note that log-probability errors tend to be smaller at high-noise steps and larger at low-noise steps. Training only on high-noise steps yields better results in this case. Thanks to [Jing Wang](https://scholar.google.com.hk/citations?user=Q9Np_KQAAAAJ&hl=zh-CN) for these observations.
-
-* When using **Flow-GRPO-Fast**, set a relatively small `clip_range`, otherwise training may crash.
-
-* When implementing a new model, please check whether using different batch sizes leads to slight differences in the output. SD3 has this issue, which is why I ensure that the batch size for training is the same as that used for data collection.
+## 🤗 Model
+| Task    | Model |
+| -------- | -------- |
+| GenEval     | [🤗GenEval](https://huggingface.co/jieliu/SD3.5M-FlowGRPO-GenEval) |
+| Text Rendering     | [🤗Text](https://huggingface.co/jieliu/SD3.5M-FlowGRPO-Text) |
+| Human Preference Alignment     | [🤗PickScore](https://huggingface.co/jieliu/SD3.5M-FlowGRPO-PickScore) |
 
 
 ## Training Speed
@@ -69,7 +72,7 @@ We found the following adjustments significantly accelerate training:
 * Use the window mechanism from **Flow-GRPO-Fast** or **[MixGRPO](https://www.arxiv.org/abs/2507.21802)** — only train on partial steps.
 * Adopt **[Coefficients-Preserving Sampling](https://arxiv.org/abs/2509.05952) (CPS)** — CPS provides a notable improvement on GenEval, and produces higher-quality samples. A typical setting is `noise_level = 0.8`, which works well without tuning for different models or step counts.
 
-The figure below shows the test-set performance curves when using GenEval and PickScore as rewards, with both training and testing done without CFG.
+The figure below shows the test-set performance curves using GenEval and PickScore as rewards, where both training and evaluation are performed **without CFG**. The experiments are configured with [**geneval_sd3_fast_nocfg**](https://github.com/yifan123/flow_grpo/blob/main/config/grpo.py#L163) and [**pickscore_sd3_fast_nocfg**](https://github.com/yifan123/flow_grpo/blob/main/config/grpo.py#L323).
 We trained the model using 64× H800 GPUs, and due to inter-node communication overhead, the measured training time is longer than that of a single machine.
 
 <p align="center">
@@ -95,13 +98,6 @@ Experiments on PickScore show that Flow-GRPO-Fast matches the reward performance
 
 
 Please use scripts in `scripts/multi_node/sd3_fast` to run these experiments.
-
-## 🤗 Model
-| Task    | Model |
-| -------- | -------- |
-| GenEval     | [🤗GenEval](https://huggingface.co/jieliu/SD3.5M-FlowGRPO-GenEval) |
-| Text Rendering     | [🤗Text](https://huggingface.co/jieliu/SD3.5M-FlowGRPO-Text) |
-| Human Preference Alignment     | [🤗PickScore](https://huggingface.co/jieliu/SD3.5M-FlowGRPO-PickScore) |
 
 
 ## 🚀 Quick Started
@@ -288,6 +284,16 @@ bash scripts/single_node/sft.sh
 Multi-node training:
 
 Please update the entry Python script and config file names in the `scripts/multi_node` bash file.
+
+
+## FAQ
+
+* Please use **fp16** for training whenever possible, as it provides higher precision than bf16, resulting in smaller log-probability errors between data collection and training. For Flux and Wan, becauase fp16 inference cannot produce valid images or videos, you will have to use **bf16** for training. Note that log-probability errors tend to be smaller at high-noise steps and larger at low-noise steps. Training only on high-noise steps yields better results in this case. Thanks to [Jing Wang](https://scholar.google.com.hk/citations?user=Q9Np_KQAAAAJ&hl=zh-CN) for these observations.
+
+* When using **Flow-GRPO-Fast**, set a relatively small `clip_range`, otherwise training may crash.
+
+* When implementing a new model, please check whether using different batch sizes leads to slight differences in the output. SD3 has this issue, which is why I ensure that the batch size for training is the same as that used for data collection.
+
 
 ## How to Support Other Models
 
