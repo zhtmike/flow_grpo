@@ -60,6 +60,24 @@ accelerate launch --config_file scripts/accelerate_configs/multi_gpu.yaml --num_
 * When implementing a new model, please check whether using different batch sizes leads to slight differences in the output. SD3 has this issue, which is why I ensure that the batch size for training is the same as that used for data collection.
 
 
+## Training Speed
+
+To improve training efficiency, we provide a better set of parameters for Flow-GRPO.
+We found the following adjustments significantly accelerate training:
+
+* No CFG during training or testing — the RL process effectively performs **CFG distillation**.
+* Use the window mechanism from **Flow-GRPO-Fast** or **[MixGRPO](https://www.arxiv.org/abs/2507.21802)** — only train on partial steps.
+* Adopt **[Coefficients-Preserving Sampling](https://arxiv.org/abs/2509.05952) (CPS)** — CPS provides a notable improvement on GenEval, and produces higher-quality samples. A typical setting is `noise_level = 0.8`, which works well without tuning for different models or step counts.
+
+The figure below shows the test-set performance curves when using GenEval and PickScore as rewards, with both training and testing done without CFG.
+We trained the model using 64× H800 GPUs, and due to inter-node communication overhead, the measured training time is longer than that of a single machine.
+
+<p align="center">
+  <img src="flow_grpo/assets/flow_grpo_fast_nocfg_geneval.svg" alt="Flow-GRPO-Fast Illustration" width="350"/>
+  <img src="flow_grpo/assets/flow_grpo_fast_nocfg_pickscore.svg" alt="Flow-GRPO-Fast Illustration" width="350"/> 
+</p>
+
+
 ## Flow-GRPO-Fast
 We propose Flow-GRPO-Fast, an accelerated variant of Flow-GRPO that requires training on **only one or two denoising step** per trajectory. For each prompt, we first generate a deterministic trajectory using ODE sampling. At a randomly chosen intermediate step, we inject noise and switch to SDE sampling to generate a group. The rest of the process continues with ODE sampling. This confines stochasticity to one or two steps, allowing training to focus solely on that steps. This few-step training idea was primarily proposed by [Ziyang Yuan](https://scholar.google.com/citations?user=fWxWEzsAAAAJ&hl=en) during our discussions in early June. 
 
