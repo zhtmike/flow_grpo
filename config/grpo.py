@@ -161,7 +161,7 @@ def geneval_sd3():
     return config
 
 def geneval_sd3_fast_nocfg():
-    gpu_number = 64
+    gpu_number = 32
     config = compressibility()
     config.dataset = os.path.join(os.getcwd(), "dataset/geneval")
 
@@ -321,7 +321,7 @@ def pickscore_sd3_fast():
 
 
 def pickscore_sd3_fast_nocfg():
-    gpu_number = 64
+    gpu_number = 32
     config = compressibility()
     config.dataset = os.path.join(os.getcwd(), "dataset/pickscore")
 
