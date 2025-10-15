@@ -72,7 +72,7 @@ We found the following adjustments significantly accelerate training:
 * Use the window mechanism from **Flow-GRPO-Fast** or **[MixGRPO](https://www.arxiv.org/abs/2507.21802)** — only train on partial steps.
 * Adopt **[Coefficients-Preserving Sampling](https://arxiv.org/abs/2509.05952) (CPS)** — CPS provides a notable improvement on GenEval, and produces higher-quality samples. A typical setting is `noise_level = 0.8`, which works well without tuning for different models or step counts.
 
-The figure below shows the test-set performance curves using GenEval and PickScore as rewards, where both training and evaluation are performed **without CFG**. The experiments are configured with [**geneval_sd3_fast_nocfg**](https://github.com/yifan123/flow_grpo/blob/main/config/grpo.py#L163) and [**pickscore_sd3_fast_nocfg**](https://github.com/yifan123/flow_grpo/blob/main/config/grpo.py#L323).
+The figure below shows the test-set performance curves using GenEval and PickScore as rewards, where both training and evaluation are performed **without CFG**. The experiments are configured with [**geneval_sd3_fast_nocfg**](https://github.com/yifan123/flow_grpo/blob/main/config/grpo.py#L163) and [**pickscore_sd3_fast_nocfg**](https://github.com/yifan123/flow_grpo/blob/main/config/grpo.py#L323), using scripts from `scripts/multi_node/sd3_fast`.
 We trained the model using 64× H800 GPUs, and due to inter-node communication overhead, the measured training time is longer than that of a single machine.
 
 <p align="center">
@@ -169,14 +169,6 @@ pip install git+https://github.com/openai/CLIP.git
 ```
 
 ### 4. Start Training
-If the GPU memory is insufficient, you can use DeepSpeed Zero2 or Zero3.
-
-```bash
-# zero2
-accelerate launch --config_file scripts/accelerate_configs/deepspeed_zero2.yaml
-# zero3
-accelerate launch --config_file scripts/accelerate_configs/deepspeed_zero3.yaml
-```
 
 #### GRPO
 
