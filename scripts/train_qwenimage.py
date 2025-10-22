@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 from diffusers import DiffusionPipeline, QwenImageTransformer2DModel
 from diffusers.utils.torch_utils import is_compiled_module
 
-from flow_grpo.fsdp_utils import FSDPConfig, fsdp_wrapper, init_distributed, save_fsdp_checkpoint, OptimizerOffload
+from flow_grpo.fsdp_utils import FSDPConfig, fsdp_wrapper, init_distributed, save_fsdp_checkpoint, register_optimizer_offload_hooks
 import numpy as np
 import flow_grpo.prompts
 import flow_grpo.rewards
@@ -497,7 +497,7 @@ def main(_):
     )
 
     if config.fsdp_optimizer_offload:
-        optimizer = OptimizerOffload(optimizer)
+        register_optimizer_offload_hooks(optimizer)
     
     if config.prompt_fn == "general_ocr":
         train_dataset = TextPromptDataset(config.dataset, 'train')

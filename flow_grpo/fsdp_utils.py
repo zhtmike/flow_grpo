@@ -105,43 +105,38 @@ def save_fsdp_checkpoint(save_dir, model, global_step, rank):
     
     dist.barrier()
 
-def offload_optimizer_states_to_cpu(optimizer):
-    """Move optimizer states to CPU"""
-    for group in optimizer.param_groups:
-        for param in group['params']:
-            if param in optimizer.state:
-                state = optimizer.state[param]
-                for key, value in state.items():
-                    if isinstance(value, torch.Tensor):
-                        state[key] = value.to('cpu', non_blocking=True)
+class OptimizerOffloadHook:
+    def __init__(self):
+        self.cpu_states = {}
 
+    def pre_step_hook(self, optimizer, args, kwargs):
+        for group in optimizer.param_groups:
+            for param in group['params']:
+                if param in optimizer.state and param in self.cpu_states:
+                    state = optimizer.state[param]
+                    for state_key, cpu_tensor in self.cpu_states[param].items():
+                        state[state_key] = cpu_tensor.to(param.device, non_blocking=True)
+                    del self.cpu_states[param]
 
-def load_optimizer_states_to_gpu(optimizer):
-    """Move optimizer states to GPU"""
-    for group in optimizer.param_groups:
-        for param in group['params']:
-            if param in optimizer.state:
-                state = optimizer.state[param]
-                for key, value in state.items():
-                    if isinstance(value, torch.Tensor):
-                        state[key] = value.to(param.device, non_blocking=True)
+    def post_step_hook(self, optimizer, args, kwargs):
+        for group in optimizer.param_groups:
+            for param in group['params']:
+                if param in optimizer.state:
+                    state = optimizer.state[param]
+                    if state:
+                        self.cpu_states[param] = {}
+                        for state_key, state_tensor in state.items():
+                            if isinstance(state_tensor, torch.Tensor):
+                                self.cpu_states[param][state_key] = state_tensor.to('cpu', non_blocking=True)
+                                state[state_key] = torch.empty(0, device=param.device)
+                                
+def register_optimizer_offload_hooks(optimizer):
+    hook = OptimizerOffloadHook()
 
+    pre_handle = optimizer.register_step_pre_hook(hook.pre_step_hook)
+    post_handle = optimizer.register_step_post_hook(hook.post_step_hook)
 
-class OptimizerOffload:
-    def __init__(self, optimizer):
-        self.optimizer = optimizer
-        
-    def step(self, *args, **kwargs):
-        load_optimizer_states_to_gpu(self.optimizer)
-        result = self.optimizer.step(*args, **kwargs)
-        offload_optimizer_states_to_cpu(self.optimizer)
-        return result
-    
-    def __getattr__(self, name):
-        # Forward other methods to the original optimizer
-        return getattr(self.optimizer, name)
-
-
+    return [pre_handle, post_handle], hook
 
 def init_distributed():
     """Initialize distributed training"""
