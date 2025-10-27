@@ -196,7 +196,7 @@ bash scripts/multi_node/flux.sh 1
 bash scripts/multi_node/flux.sh 2
 bash scripts/multi_node/flux.sh 3
 ```
-For Flow-GRPO-Fast, please use `scripts/multi_node/flux_fast.sh`. See the W&B logs for [Geneval](https://api.wandb.ai/links/ljie/qz47q208) and [PickScore](https://api.wandb.ai/links/ljie/ncdwa0wo).
+For Flow-GRPO-Fast, please use `scripts/multi_node/flux_fast.sh`. See the W&B logs for [Geneval](https://api.wandb.ai/links/ljie/qz47q208) (with `geneval_flux_fast` in the config) and [PickScore](https://api.wandb.ai/links/ljie/ncdwa0wo) (with `pickscore_flux_fast` in the config).
 
 
 - Multi-node training for FLUX.1-Kontext-dev:
