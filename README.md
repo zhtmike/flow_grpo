@@ -8,7 +8,12 @@
 </div>
 
 ## Changelog
+**2025-10-31**
+* Adding **GRPO-Guard**.
+
 <details open>
+  
+
 <summary><strong>2025-10-14</strong></summary>
 
 * Refactor FlowGRPO-Fast for compatibility with FlowGRPO, add CPS sampling and No-CFG training on SD3.
