@@ -113,7 +113,7 @@ The following figure compares over-optimization between GRPO-Guard and FlowGRPO 
 
 **Start Training**
 
-Run the scripts:
+After downloading the base model and setting up the reward model, run the following script to start training the GRPO-Guard for the SD3.5-M text rendering task.
 ```bash
 # Master node
 bash scripts/multi_node/sd3_grpo_guard.sh 0
