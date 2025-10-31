@@ -108,11 +108,12 @@ To address this issue, [GRPO-Guard](https://arxiv.org/abs/2510.22319) introduces
 The following figure compares over-optimization between GRPO-Guard and FlowGRPO on text rendering tasks. GRPO-Guard maintains the same rising trend in proxy scores as FlowGRPO while preventing rapid declines in gold scores, thus preserving high image quality and diversity.
 
 <p align="center">
-  <img src="flow_grpo/assets/GRPO-Guard/GRPO-Guard-figure1.png" alt="GRPO-Guard Illustration" width=450"/>
+  <img src="flow_grpo/assets/GRPO-Guard/GRPO-Guard-figure1.png" alt="GRPO-Guard Illustration" width=600"/>
 </p>
 
 **Start Training**
-Then run the scripts:
+
+Run the scripts:
 ```bash
 # Master node
 bash scripts/multi_node/sd3_grpo_guard.sh 0
