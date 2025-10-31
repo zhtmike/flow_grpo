@@ -9,7 +9,7 @@
 
 ## Changelog
 **2025-10-31**
-* Adding **GRPO-Guard**.
+* Adding **GRPO-Guard** 🔥🔥.
 
 <details open>
   
