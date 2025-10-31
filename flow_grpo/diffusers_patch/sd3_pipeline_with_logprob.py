@@ -35,6 +35,7 @@ def pipeline_with_logprob(
     max_sequence_length: int = 256,
     skip_layer_guidance_scale: float = 2.8,
     noise_level: float = 0.7,
+    return_prev_sample_mean: bool = False
 ):
     height = height or self.default_sample_size * self.vae_scale_factor
     width = width or self.default_sample_size * self.vae_scale_factor
@@ -131,6 +132,7 @@ def pipeline_with_logprob(
     # 6. Prepare image embeddings
     all_latents = [latents]
     all_log_probs = []
+    all_prev_latents_mean = []
 
     # 7. Denoising loop
     with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -168,6 +170,7 @@ def pipeline_with_logprob(
             
             all_latents.append(latents)
             all_log_probs.append(log_prob)
+            all_prev_latents_mean.append(prev_latents_mean)
             # if latents.dtype != latents_dtype:
             #     latents = latents.to(latents_dtype)
             
@@ -183,4 +186,6 @@ def pipeline_with_logprob(
     # Offload all models
     self.maybe_free_model_hooks()
 
+    if return_prev_sample_mean:
+        return image, all_latents, all_log_probs, all_prev_latents_mean
     return image, all_latents, all_log_probs

@@ -62,7 +62,6 @@ accelerate launch --config_file scripts/accelerate_configs/multi_gpu.yaml --num_
 | Text Rendering     | [🤗Text](https://huggingface.co/jieliu/SD3.5M-FlowGRPO-Text) |
 | Human Preference Alignment     | [🤗PickScore](https://huggingface.co/jieliu/SD3.5M-FlowGRPO-PickScore) |
 
-
 ## Training Speed
 
 To improve training efficiency, we provide a better set of parameters for Flow-GRPO.
@@ -79,6 +78,47 @@ The figure below shows the test-set performance curves using GenEval and PickSco
   <img src="flow_grpo/assets/flow_grpo_fast_nocfg_pickscore.svg" alt="Flow-GRPO-Fast Illustration" width="350"/> 
 </p>
 
+## Over-optimization (GRPO-Guard)
+
+To mitigates implicit over-optimization in flow matching, we propose [GRPO-Guard](https://arxiv.org/abs/2510.22319) ( [🔥Project Page](https://jingw193.github.io/GRPO-Guard/))
+
+We first observe that the importance ratio exhibits an inherent bias:
+
+1. Its mean is consistently **below 1** and becomes significantly pronounced at low-noise steps (e.g., step 8 in SD3.5-M).
+
+2. The variance varies notably across different steps.
+
+Ideally, the importance ratio distribution should have a mean of 1 and stable variance. The clipping operation truncates overly confident positive or negative samples outside the region [1−ϵ,1+ϵ], ensuring stable gradient updates. However, the observed bias in the importance ratio disrupts this mechanism—gradients of positive samples are no longer properly constrained, **leading the policy model into over-optimization**. As a result, the proxy score continues to rise while the gold score declines, causing a severe degradation in image quality.
+
+
+The biased ratio distributions are summarized in the table below.
+
+| FlowGRPO | GRPO-Guard|
+| - | - |
+| ![flow_grpo ratio](flow_grpo/assets/GRPO-Guard/gif_1.gif) | ![grpo_guard ratio](flow_grpo/assets/GRPO-Guard/gif_2.gif)  |
+| The clipping mechanism is imbalanced, failing to constrain overconfident positive samples. | The clipping mechanism is imbalanced, failing to constrain overconfident positive samples.|
+
+
+To address this issue, [GRPO-Guard](https://arxiv.org/abs/2510.22319) introduces two mechanisms that effectively alleviate over-optimization:
+
+- RatioNorm: Corrects the distributional bias of importance ratios and unifies their statistics across denoising steps.
+
+- Gradient Reweight: Further reweights the gradients of different denoising steps based on RatioNorm, balancing their contributions and preventing excessive optimization under specific noise levels.
+
+The following figure compares over-optimization between GRPO-Guard and FlowGRPO on text rendering tasks. GRPO-Guard maintains the same rising trend in proxy scores as FlowGRPO while preventing rapid declines in gold scores, thus preserving high image quality and diversity.
+
+<p align="center">
+  <img src="flow_grpo/assets/GRPO-Guard/GRPO-Guard-figure1.png" alt="GRPO-Guard Illustration" width=450"/>
+</p>
+
+**Start Training**
+Then run the scripts:
+```bash
+# Master node
+bash scripts/multi_node/sd3_grpo_guard.sh 0
+# Other nodes
+bash scripts/multi_node/sd3_grpo_guard.sh 1
+```
 
 ## Flow-GRPO-Fast
 We propose Flow-GRPO-Fast, an accelerated variant of Flow-GRPO that requires training on **only one or two denoising step** per trajectory. For each prompt, we first generate a deterministic trajectory using ODE sampling. At a randomly chosen intermediate step, we inject noise and switch to SDE sampling to generate a group. The rest of the process continues with ODE sampling. This confines stochasticity to one or two steps, allowing training to focus solely on that steps. This few-step training idea was primarily proposed by [Ziyang Yuan](https://scholar.google.com/citations?user=fWxWEzsAAAAJ&hl=en) during our discussions in early June. 
@@ -356,6 +396,18 @@ If you find Flow-GRPO useful for your research or projects, we would greatly app
   author={Liu, Jie and Liu, Gongye and Liang, Jiajun and Li, Yangguang and Liu, Jiaheng and Wang, Xintao and Wan, Pengfei and Zhang, Di and Ouyang, Wanli},
   journal={arXiv preprint arXiv:2505.05470},
   year={2025}
+}
+```
+If you find GRPO-Guard useful for your research or projects, we would greatly appreciate it if you could cite the following paper:
+```
+@misc{wang2025grpoguardmitigatingimplicitoveroptimization,
+    title={GRPO-Guard: Mitigating Implicit Over-Optimization in Flow Matching via Regulated Clipping}, 
+    author={Jing Wang and Jiajun Liang and Jie Liu and Henglin Liu and Gongye Liu and Jun Zheng and Wanyuan Pang and Ao Ma and Zhenyu Xie and Xintao Wang and Meng Wang and Pengfei Wan and Xiaodan Liang},
+    year={2025},
+    eprint={2510.22319},
+    archivePrefix={arXiv},
+    primaryClass={cs.CV},
+    url={https://arxiv.org/abs/2510.22319}, 
 }
 ```
 If you find Flow-DPO useful for your research or projects, we would greatly appreciate it if you could cite the following paper:
