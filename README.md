@@ -80,7 +80,7 @@ The figure below shows the test-set performance curves using GenEval and PickSco
 
 ## Over-optimization (GRPO-Guard)
 
-To mitigates implicit over-optimization in flow matching, we propose [GRPO-Guard](https://arxiv.org/abs/2510.22319) ( [🔥Project Page](https://jingw193.github.io/GRPO-Guard/))
+To mitigates implicit over-optimization in flow matching, we propose [GRPO-Guard](https://arxiv.org/abs/2510.22319) ( [🔥Project Page](https://jingw193.github.io/GRPO-Guard/)).
 
 We first observe that the importance ratio exhibits an inherent bias:
 
@@ -101,14 +101,14 @@ The biased ratio distributions are summarized in the table below.
 
 To address this issue, [GRPO-Guard](https://arxiv.org/abs/2510.22319) introduces two mechanisms that effectively alleviate over-optimization:
 
-- RatioNorm: Corrects the distributional bias of importance ratios and unifies their statistics across denoising steps.
+- **RatioNorm**: Corrects the distributional bias of importance ratios and unifies their statistics across denoising steps.
 
-- Gradient Reweight: Further reweights the gradients of different denoising steps based on RatioNorm, balancing their contributions and preventing excessive optimization under specific noise levels.
+- **Gradient Reweight**: Further reweights the gradients of different denoising steps based on RatioNorm, balancing their contributions and preventing excessive optimization under specific noise levels.
 
 The following figure compares over-optimization between GRPO-Guard and FlowGRPO on text rendering tasks. GRPO-Guard maintains the same rising trend in proxy scores as FlowGRPO while preventing rapid declines in gold scores, thus preserving high image quality and diversity.
 
 <p align="center">
-  <img src="flow_grpo/assets/GRPO-Guard/GRPO-Guard-figure1.png" alt="GRPO-Guard Illustration" width=600"/>
+  <img src="flow_grpo/assets/GRPO-Guard/GRPO-Guard-figure1.png" alt="GRPO-Guard Illustration" width=900"/>
 </p>
 
 **Start Training**
