@@ -83,9 +83,9 @@ The figure below shows the test-set performance curves using GenEval and PickSco
   <img src="flow_grpo/assets/flow_grpo_fast_nocfg_pickscore.svg" alt="Flow-GRPO-Fast Illustration" width="350"/> 
 </p>
 
-## Over-optimization (GRPO-Guard)
+## 🛡️ Over-optimization (GRPO-Guard) 🔥🔥
 
-To mitigates implicit over-optimization in flow matching, we propose [GRPO-Guard](https://arxiv.org/abs/2510.22319) ( [🔥Project Page](https://jingw193.github.io/GRPO-Guard/)).
+To mitigates implicit over-optimization in flow matching, our team propose [GRPO-Guard](https://arxiv.org/abs/2510.22319) ( [🔥Project Page](https://jingw193.github.io/GRPO-Guard/)).
 
 We first observe that the importance ratio exhibits an inherent bias:
 
