@@ -44,7 +44,7 @@ def aesthetic_score():
 
     return _fn
 
-def clip_score():
+def clip_score(device):
     from flow_grpo.clip_scorer import ClipScorer
 
     scorer = ClipScorer(device=device)
