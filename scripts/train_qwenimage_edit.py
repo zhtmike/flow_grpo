@@ -20,7 +20,7 @@ from diffusers import QwenImageEditPipeline, QwenImageTransformer2DModel
 from diffusers.utils.torch_utils import is_compiled_module
 from diffusers.pipelines.qwenimage.pipeline_qwenimage_edit import calculate_shift, calculate_dimensions
 
-from flow_grpo.fsdp_utils import FSDPConfig, fsdp_wrapper, init_distributed, save_fsdp_checkpoint, OptimizerOffload
+from flow_grpo.fsdp_utils import FSDPConfig, fsdp_wrapper, init_distributed, save_fsdp_checkpoint, register_optimizer_offload_hooks
 import numpy as np
 import flow_grpo.prompts
 import flow_grpo.rewards
@@ -503,7 +503,7 @@ def main(_):
     )
 
     if config.fsdp_optimizer_offload:
-        optimizer = OptimizerOffload(optimizer)
+        optimizer = register_optimizer_offload_hooks(optimizer)
     
     train_dataset = GenevalPromptImageDataset(config.dataset, 'train')
     test_dataset = GenevalPromptImageDataset(config.dataset, 'test')
