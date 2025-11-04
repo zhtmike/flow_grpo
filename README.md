@@ -9,7 +9,14 @@
 
 ## Changelog
 <details open>
-<summary><strong>2025-10-14</strong></summary>
+
+**2025-10-22**
+
+* Adding support for [Bagel-7B](https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT).
+
+<!-- <summary><strong>2025-10-14</strong></summary> -->
+
+**2025-10-14**
 
 * Refactor FlowGRPO-Fast for compatibility with FlowGRPO, add CPS sampling and No-CFG training on SD3.
 
@@ -171,14 +178,20 @@ pip install git+https://github.com/openai/CLIP.git
 
 #### GRPO
 
-- Single-node training:
+
+**Single-node training**
+
 ```bash
 # sd3
 bash scripts/single_node/grpo.sh
 # flux
 bash scripts/single_node/grpo_flux.sh
 ```
-- Multi-node training for SD3:
+
+---
+
+<details> <summary>Multi-node training for SD3:</summary>
+
 ```bash
 # Master node
 bash scripts/multi_node/sd3.sh 0
@@ -187,7 +200,12 @@ bash scripts/multi_node/sd3.sh 1
 bash scripts/multi_node/sd3.sh 2
 bash scripts/multi_node/sd3.sh 3
 ```
-- Multi-node training for FLUX.1-dev:
+---
+</details>
+
+
+<details> <summary>Multi-node training for FLUX.1-dev</summary>
+
 ```bash
 # Master node
 bash scripts/multi_node/flux.sh 0
@@ -200,6 +218,11 @@ For Flow-GRPO-Fast, please use `scripts/multi_node/flux_fast.sh`. See the W&B lo
 
 
 - Multi-node training for FLUX.1-Kontext-dev:
+---
+</details>
+
+
+<details> <summary>Multi-node training for FLUX.1-Kontext-dev</summary>
 
 Please first download [generated\_images.zip](https://huggingface.co/datasets/jieliu/counting_edit/blob/main/generated_images.zip) and extract it into the `counting_edit` directory. You can also use the scripts in the `counting_edit` directory to generate the data yourself.
 
@@ -217,9 +240,11 @@ bash scripts/multi_node/flux_kontext.sh 1
 bash scripts/multi_node/flux_kontext.sh 2
 bash scripts/multi_node/flux_kontext.sh 3
 ```
+---
+</details>
 
 
-- Multi-node training for Qwen-Image:
+<details> <summary>Multi-node training for Qwen-Image:</summary>
 
 In the implementation of Qwen-Image, we have unified Flow-GRPO and Flow-GRPO-Fast. You can control the size of the SDE window with `config.sample.sde_window_size`, and adjust the position of the window with `config.sample.sde_window_range`.
 
@@ -241,9 +266,11 @@ Using the provided configuration, the resulting reward curve of Qwen-Image on th
 <p align="center">
   <img src="flow_grpo/assets/flow_grpo_fast_qwenimage.png" alt="Flow-GRPO-Fast Illustration" width=350"/>
 </p>
+---
+</details>
 
 
-- Multi-node training for Qwen-Image-Edit:
+<details> <summary>Multi-node training for Qwen-Image-Edit:</summary>
 
 Same as Flux Kontext, please first download [generated\_images.zip](https://huggingface.co/datasets/jieliu/counting_edit/blob/main/generated_images.zip) and extract it into the `counting_edit` directory. You can also use the scripts in the `counting_edit` directory to generate the data yourself.
 
@@ -267,6 +294,40 @@ Using the provided configuration, the resulting reward curve of Qwen-Image-Edit 
   <img src="flow_grpo/assets/qwenimageedit_epoch.png" alt="Flow-GRPO-Fast Illustration" width="350"/>
   <img src="flow_grpo/assets/qwenimageedit_time.png" alt="Flow-GRPO-Fast Illustration" width="350"/> 
 </p>
+---
+</details>
+
+
+<details> <summary>Multi-node training for Bagel:</summary>
+
+Please first upgrade `transformers` to **version>=4.44.0** install `flash-attn`:
+```bash
+pip install transformers==4.44.0
+pip install flash-attn==2.7.4.post1 --no-build-isolation
+```
+
+Then run the scripts:
+```bash
+# Master node
+bash scripts/multi_node/bagel/main.sh 0
+# Other nodes
+bash scripts/multi_node/bagel/main.sh 1
+bash scripts/multi_node/bagel/main.sh 2
+bash scripts/multi_node/bagel/main.sh 3
+```
+
+Using the provided configuration, the resulting reward(PickScore) curve of Bagel on the test set is shown below (with 32 GPU).
+
+<p align="center">
+  <img src="flow_grpo/assets/bagel_pickscore.svg" alt="Flow-GRPO-Fast Illustration" width="350"/>
+</p>
+
+**[Note]: About resource requirements & OOM**
+
+The default training script adopts full-parameter mode, whcih requires at least **8 × 80GB GPUs**. If you encounter OOM issues, you can switch to LoRA training with the config provided in `config/grpo.py:pickscore_bagel_lora`.
+
+---
+</details>
 
 
 #### DPO / OnlineDPO / SFT / OnlineSFT
