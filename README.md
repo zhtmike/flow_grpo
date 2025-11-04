@@ -10,11 +10,11 @@
 ## Changelog
 <details open>
 
-**2025-10-22**
+**2025-11-04**
 
 * Adding support for [Bagel-7B](https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT).
 
-<!-- <summary><strong>2025-10-14</strong></summary> -->
+<!-- <summary><strong>2025-11-04</strong></summary> -->
 
 **2025-10-14**
 
@@ -216,8 +216,6 @@ bash scripts/multi_node/flux.sh 3
 ```
 For Flow-GRPO-Fast, please use `scripts/multi_node/flux_fast.sh`. See the W&B logs for [Geneval](https://api.wandb.ai/links/ljie/qz47q208) (with `geneval_flux_fast` in the config) and [PickScore](https://api.wandb.ai/links/ljie/ncdwa0wo) (with `pickscore_flux_fast` in the config).
 
-
-- Multi-node training for FLUX.1-Kontext-dev:
 ---
 </details>
 
