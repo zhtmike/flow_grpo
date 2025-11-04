@@ -6,7 +6,7 @@ export NCCL_DEBUG=WARN
 export NCCL_IB_GID_INDEX=3
 
 MASTER_PORT=19001
-RANK=1
+RANK=$1
 MASTER_ADDR=10.82.139.22
 # Launch command (parameters automatically read from accelerate_multi_node.yaml)
 accelerate launch --config_file scripts/accelerate_configs/deepspeed_zero2.yaml \

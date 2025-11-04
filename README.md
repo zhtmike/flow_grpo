@@ -194,11 +194,11 @@ bash scripts/single_node/grpo_flux.sh
 
 ```bash
 # Master node
-bash scripts/multi_node/sd3/main.sh
+bash scripts/multi_node/sd3.sh 0
 # Other nodes
-bash scripts/multi_node/sd3/main1.sh
-bash scripts/multi_node/sd3/main2.sh
-bash scripts/multi_node/sd3/main3.sh
+bash scripts/multi_node/sd3.sh 1
+bash scripts/multi_node/sd3.sh 2
+bash scripts/multi_node/sd3.sh 3
 ```
 ---
 </details>
@@ -208,12 +208,16 @@ bash scripts/multi_node/sd3/main3.sh
 
 ```bash
 # Master node
-bash scripts/multi_node/flux/main.sh
-# Other nodes
-bash scripts/multi_node/flux/main1.sh
-bash scripts/multi_node/flux/main2.sh
-bash scripts/multi_node/flux/main3.sh
+bash scripts/multi_node/flux.sh 0
+# Other node
+bash scripts/multi_node/flux.sh 1
+bash scripts/multi_node/flux.sh 2
+bash scripts/multi_node/flux.sh 3
 ```
+For Flow-GRPO-Fast, please use `scripts/multi_node/flux_fast.sh`. See the W&B logs for [Geneval](https://api.wandb.ai/links/ljie/qz47q208) (with `geneval_flux_fast` in the config) and [PickScore](https://api.wandb.ai/links/ljie/ncdwa0wo) (with `pickscore_flux_fast` in the config).
+
+
+- Multi-node training for FLUX.1-Kontext-dev:
 ---
 </details>
 
@@ -230,11 +234,11 @@ After upgrading Diffusers, some packages such as PEFT may also need to be upgrad
 Then, run the scripts:
 ```bash
 # Master node
-bash scripts/multi_node/flux_kontext/main.sh
+bash scripts/multi_node/flux_kontext.sh 0
 # Other nodes
-bash scripts/multi_node/flux_kontext/main1.sh
-bash scripts/multi_node/flux_kontext/main2.sh
-bash scripts/multi_node/flux_kontext/main3.sh
+bash scripts/multi_node/flux_kontext.sh 1
+bash scripts/multi_node/flux_kontext.sh 2
+bash scripts/multi_node/flux_kontext.sh 3
 ```
 ---
 </details>
@@ -251,11 +255,11 @@ pip install git+https://github.com/huggingface/diffusers.git
 Then run the scripts:
 ```bash
 # Master node
-bash scripts/multi_node/qwenimage/main.sh 0
+bash scripts/multi_node/qwenimage.sh 0
 # Other nodes
-bash scripts/multi_node/qwenimage/main.sh 1
-bash scripts/multi_node/qwenimage/main.sh 2
-bash scripts/multi_node/qwenimage/main.sh 3
+bash scripts/multi_node/qwenimage.sh 1
+bash scripts/multi_node/qwenimage.sh 2
+bash scripts/multi_node/qwenimage.sh 3
 ```
 Using the provided configuration, the resulting reward curve of Qwen-Image on the test set is shown below.
 
@@ -277,11 +281,11 @@ pip install git+https://github.com/huggingface/diffusers.git
 Then run the scripts:
 ```bash
 # Master node
-bash scripts/multi_node/qwenimage_edit/main.sh 0
+bash scripts/multi_node/qwenimage_edit.sh 0
 # Other nodes
-bash scripts/multi_node/qwenimage_edit/main.sh 1
-bash scripts/multi_node/qwenimage_edit/main.sh 2
-bash scripts/multi_node/qwenimage_edit/main.sh 3
+bash scripts/multi_node/qwenimage_edit.sh 1
+bash scripts/multi_node/qwenimage_edit.sh 2
+bash scripts/multi_node/qwenimage_edit.sh 3
 ```
 
 Using the provided configuration, the resulting reward curve of Qwen-Image-Edit on the test set is shown below.
