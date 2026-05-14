@@ -165,21 +165,32 @@ def pipeline_with_logprob(
                 cur_noise_level= 0
             self._current_timestep = t
             timestep = t.expand(latents.shape[0]).to(latents.dtype)
-            noise_pred = self.transformer(
-                hidden_states=torch.cat([latents, latents], dim=0),
-                timestep=torch.cat([timestep, timestep], dim=0) / 1000,
-                guidance=guidance,
-                encoder_hidden_states_mask=torch.cat([prompt_embeds_mask, negative_prompt_embeds_mask], dim=0),
-                encoder_hidden_states=torch.cat([prompt_embeds, negative_prompt_embeds], dim=0),
-                img_shapes=img_shapes*2,
-                txt_seq_lens=txt_seq_lens+negative_txt_seq_lens,
-            )[0]
-            noise_pred, neg_noise_pred = noise_pred.chunk(2, dim=0)
-            comb_pred = neg_noise_pred + true_cfg_scale * (noise_pred - neg_noise_pred)
+            if do_true_cfg:
+                noise_pred = self.transformer(
+                    hidden_states=torch.cat([latents, latents], dim=0),
+                    timestep=torch.cat([timestep, timestep], dim=0) / 1000,
+                    guidance=guidance,
+                    encoder_hidden_states_mask=torch.cat([prompt_embeds_mask, negative_prompt_embeds_mask], dim=0),
+                    encoder_hidden_states=torch.cat([prompt_embeds, negative_prompt_embeds], dim=0),
+                    img_shapes=img_shapes*2,
+                    txt_seq_lens=txt_seq_lens+negative_txt_seq_lens,
+                )[0]
+                noise_pred, neg_noise_pred = noise_pred.chunk(2, dim=0)
+                comb_pred = neg_noise_pred + true_cfg_scale * (noise_pred - neg_noise_pred)
 
-            cond_norm = torch.norm(noise_pred, dim=-1, keepdim=True)
-            noise_norm = torch.norm(comb_pred, dim=-1, keepdim=True)
-            noise_pred = comb_pred * (cond_norm / noise_norm)
+                cond_norm = torch.norm(noise_pred, dim=-1, keepdim=True)
+                noise_norm = torch.norm(comb_pred, dim=-1, keepdim=True)
+                noise_pred = comb_pred * (cond_norm / noise_norm)
+            else:
+                noise_pred = self.transformer(
+                    hidden_states=latents,
+                    timestep=timestep / 1000,
+                    guidance=guidance,
+                    encoder_hidden_states_mask=prompt_embeds_mask,
+                    encoder_hidden_states=prompt_embeds,
+                    img_shapes=img_shapes,
+                    txt_seq_lens=txt_seq_lens,
+                )[0]
             latents_dtype = latents.dtype
             latents, log_prob, prev_latents_mean, std_dev_t = sde_step_with_logprob(
                 self.scheduler, 

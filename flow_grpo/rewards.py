@@ -140,6 +140,30 @@ def ocr_score(device):
 
     return _fn
 
+def genrm_ocr_score(device):
+    """GRM-based OCR reward, mirroring verl-omni's ``compute_score_ocr``.
+
+    Sends each image to a vLLM OpenAI-compatible server hosting a vision LLM
+    (e.g. ``Qwen/Qwen3-VL-8B-Instruct``) and scores the returned transcription
+    against the quoted text in the prompt using normalized Levenshtein distance.
+
+    Configured entirely via environment variables:
+        REWARD_ROUTER_ADDRESS  ``host:port``  (default 127.0.0.1:17140)
+        REWARD_MODEL_NAME      served-model-name  (default Qwen/Qwen3-VL-8B-Instruct)
+        REWARD_API_KEY         bearer token   (default ``flowgrpo``)
+    """
+    del device  # unused; reward runs on remote GRM server
+    from flow_grpo.genrm_ocr import GenRMOcrScorer
+
+    scorer = GenRMOcrScorer()
+
+    def _fn(images, prompts, metadata):
+        scores = scorer(images, prompts)
+        return scores, {}
+
+    return _fn
+
+
 def video_ocr_score(device):
     from flow_grpo.ocr import OcrScorer_video_or_image
 
@@ -411,6 +435,7 @@ def multi_score(device, score_dict):
     score_functions = {
         "deqa": deqa_score_remote,
         "ocr": ocr_score,
+        "genrm_ocr": genrm_ocr_score,
         "video_ocr": video_ocr_score,
         "imagereward": imagereward_score,
         "pickscore": pickscore_score,

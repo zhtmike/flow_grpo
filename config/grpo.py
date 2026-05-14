@@ -1015,5 +1015,96 @@ def pickscore_bagel_lora():
     return config
 
 
+def qwenimage_ocr_lora_async_reward_4gpu():
+    """Benchmark-aligned config that mirrors verl-omni's
+    ``run_qwen_image_ocr_lora_async_reward.sh``.
+
+    Mapping verl-omni -> flow_grpo:
+        data.train_batch_size=32 (prompts) and rollout.n=16 (samples/prompt)
+            -> samples_per_epoch = 32 * 16 = 512
+        ppo_mini_batch_size=16 prompts (=> 256 samples per optimizer step)
+            -> 2 optimizer steps per epoch
+        ppo_micro_batch_size_per_gpu=16 (samples/GPU per fwd/bwd)
+            -> sample.train_batch_size = 16 (this script reuses
+               sample.train_batch_size for the training micro-batch via
+               train.batch_size = sample.train_batch_size).
+            With 4 GPUs and train_bs=16:
+              num_batches_per_epoch = 512 / (4 * 16) = 8
+              gradient_accumulation_steps = 8 // 2 = 4
+              => 4 micro fwd/bwd * 10 timesteps = 40 sub-steps per
+                 optimizer.step(), matching verl-omni's
+                 256 samples / (4 GPUs * 16 samples) * 10 = 40.
+    """
+    gpu_number = 4
+    config = compressibility()
+    config.dataset = os.path.join(os.getcwd(), "dataset/ocr")
+
+    # Model
+    config.pretrained.model = "Qwen/Qwen-Image"
+
+    # Diffusion / sampling
+    config.sample.num_steps = 10
+    config.sample.eval_num_steps = 50
+    config.sample.guidance_scale = 1.0   # CFG disabled for benchmark (1.0 = single forward pass)
+    config.sample.eval_guidance_scale = 1.0
+    config.sample.noise_level = 1.2
+    config.sample.sde_window_size = 2
+    config.sample.sde_window_range = (0, 5)
+    config.sample.global_std = True
+    config.sample.same_latent = False
+
+    config.resolution = 512
+    # Match verl-omni's actor.ppo_micro_batch_size_per_gpu=16 so each GPU runs
+    # the same per-step fwd/bwd granularity. Also drives the rollout micro-batch.
+    config.sample.train_batch_size = 16
+    config.sample.num_image_per_prompt = 16
+    # samples_per_epoch == 32 prompts * 16 = 512
+    # num_batches_per_epoch = 32 / (gpu * train_bs / n_per_prompt) = 32/(4*16/16) = 8
+    config.sample.num_batches_per_epoch = int(
+        32 / (gpu_number * config.sample.train_batch_size / config.sample.num_image_per_prompt)
+    )
+    assert config.sample.num_batches_per_epoch % 2 == 0, (
+        "num_batches_per_epoch must be even so two grad updates fire per epoch."
+    )
+    config.sample.test_batch_size = 4
+
+    # Training
+    config.train.batch_size = config.sample.train_batch_size
+    config.train.gradient_accumulation_steps = config.sample.num_batches_per_epoch // 2
+    config.train.num_inner_epochs = 1
+    config.train.beta = 0
+    config.train.learning_rate = 3e-4
+    config.train.adam_weight_decay = 1e-4  # ~ verl-omni weight_decay=0.0001
+    config.train.ema = False
+    config.train.clip_range = 1e-4
+    config.train.adv_clip_max = 5
+    config.train.lora_path = None  # ensure not loading any pretrained adapter
+
+    # Precision / memory
+    config.mixed_precision = "bf16"
+    config.use_lora = True
+    config.activation_checkpointing = True
+    config.fsdp_optimizer_offload = True
+
+    # Schedule
+    config.save_freq = 30   # epochs
+    config.eval_freq = 30
+    config.num_epochs = 15  # mirrors trainer.total_epochs=15
+    config.save_dir = "logs/qwenimage_ocr_lora_async_reward"
+
+    # Reward: vLLM-served Qwen3-VL GRM (see scripts/single_node/launch_ocr_reward_vllm.sh)
+    config.reward_fn = {
+        "genrm_ocr": 1.0,
+    }
+    config.reward_router_address = "127.0.0.1:17140"
+    config.reward_model_name = "Qwen/Qwen3-VL-8B-Instruct"
+
+    # Dataset / prompts
+    config.prompt_fn = "general_ocr"
+    config.per_prompt_stat_tracking = True
+
+    return config
+
+
 def get_config(name):
     return globals()[name]()

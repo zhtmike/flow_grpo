@@ -6,6 +6,20 @@ from concurrent import futures
 import time
 import json
 import hashlib
+
+# Stub xformers if its Triton kernels are incompatible with the current
+# PyTorch/CUDA/Triton version (JITCallable API changed in newer Triton).
+# This must happen before diffusers is imported; diffusers will fall back
+# to its native (non-xformers) attention implementation.
+import sys as _sys, types as _types
+try:
+    import xformers.ops  # noqa: F401
+except Exception:
+    _xf = _sys.modules.get("xformers") or _types.ModuleType("xformers")
+    _xf.ops = _types.ModuleType("xformers.ops")
+    _sys.modules.update({"xformers": _xf, "xformers.ops": _xf.ops})
+del _sys, _types
+
 from absl import app, flags
 from ml_collections import config_flags
 import torch.distributed as dist
@@ -204,31 +218,45 @@ def create_generator(prompts, base_seed):
 def compute_log_prob(transformer, pipeline, sample, j, config, rank):
     img_shapes = [[(1, config.resolution // pipeline.vae_scale_factor // 2, config.resolution // pipeline.vae_scale_factor // 2)]] * len(sample["latents"][:, j])
     txt_seq_lens = sample["prompt_embeds_mask"].sum(dim=1).tolist()
-    negative_txt_seq_lens = sample["negative_prompt_embeds_mask"].sum(dim=1).tolist()
 
-    # Predict the noise residual
-    # txt_seq_lens是最长的,sample["prompt_embeds_mask"]和sample["prompt_embeds"]可能有没必要的padding
-    sample["prompt_embeds_mask"] = sample["prompt_embeds_mask"][:, :max(txt_seq_lens+negative_txt_seq_lens)]
-    sample["negative_prompt_embeds_mask"] = sample["negative_prompt_embeds_mask"][:, :max(txt_seq_lens+negative_txt_seq_lens)]
-    sample["prompt_embeds"] = sample["prompt_embeds"][:, :max(txt_seq_lens+negative_txt_seq_lens)]
-    sample["negative_prompt_embeds"] = sample["negative_prompt_embeds"][:, :max(txt_seq_lens+negative_txt_seq_lens)]
+    if config.sample.guidance_scale == 1.0:
+        # CFG disabled: single forward pass, skip negative branch entirely
+        sample["prompt_embeds_mask"] = sample["prompt_embeds_mask"][:, :max(txt_seq_lens)]
+        sample["prompt_embeds"] = sample["prompt_embeds"][:, :max(txt_seq_lens)]
 
+        noise_pred = transformer(
+            hidden_states=sample["latents"][:, j],
+            timestep=sample["timesteps"][:, j] / 1000,
+            guidance=None,
+            encoder_hidden_states_mask=sample["prompt_embeds_mask"],
+            encoder_hidden_states=sample["prompt_embeds"],
+            img_shapes=img_shapes,
+            txt_seq_lens=txt_seq_lens,
+        )[0]
+    else:
+        negative_txt_seq_lens = sample["negative_prompt_embeds_mask"].sum(dim=1).tolist()
+        # txt_seq_lens是最长的,sample["prompt_embeds_mask"]和sample["prompt_embeds"]可能有没必要的padding
+        sample["prompt_embeds_mask"] = sample["prompt_embeds_mask"][:, :max(txt_seq_lens+negative_txt_seq_lens)]
+        sample["negative_prompt_embeds_mask"] = sample["negative_prompt_embeds_mask"][:, :max(txt_seq_lens+negative_txt_seq_lens)]
+        sample["prompt_embeds"] = sample["prompt_embeds"][:, :max(txt_seq_lens+negative_txt_seq_lens)]
+        sample["negative_prompt_embeds"] = sample["negative_prompt_embeds"][:, :max(txt_seq_lens+negative_txt_seq_lens)]
 
-    noise_pred = transformer(
-        hidden_states=torch.cat([sample["latents"][:, j], sample["latents"][:, j]], dim=0),
-        timestep=torch.cat([sample["timesteps"][:, j], sample["timesteps"][:, j]], dim=0) / 1000,
-        guidance=None,
-        encoder_hidden_states_mask=torch.cat([sample["prompt_embeds_mask"], sample["negative_prompt_embeds_mask"]], dim=0),
-        encoder_hidden_states=torch.cat([sample["prompt_embeds"], sample["negative_prompt_embeds"]], dim=0),
-        img_shapes=img_shapes*2,
-        txt_seq_lens=txt_seq_lens+negative_txt_seq_lens,
-    )[0]
-    noise_pred, neg_noise_pred = noise_pred.chunk(2, dim=0)
-    comb_pred = neg_noise_pred + config.sample.guidance_scale * (noise_pred - neg_noise_pred)
+        noise_pred = transformer(
+            hidden_states=torch.cat([sample["latents"][:, j], sample["latents"][:, j]], dim=0),
+            timestep=torch.cat([sample["timesteps"][:, j], sample["timesteps"][:, j]], dim=0) / 1000,
+            guidance=None,
+            encoder_hidden_states_mask=torch.cat([sample["prompt_embeds_mask"], sample["negative_prompt_embeds_mask"]], dim=0),
+            encoder_hidden_states=torch.cat([sample["prompt_embeds"], sample["negative_prompt_embeds"]], dim=0),
+            img_shapes=img_shapes*2,
+            txt_seq_lens=txt_seq_lens+negative_txt_seq_lens,
+        )[0]
+        noise_pred, neg_noise_pred = noise_pred.chunk(2, dim=0)
+        comb_pred = neg_noise_pred + config.sample.guidance_scale * (noise_pred - neg_noise_pred)
 
-    cond_norm = torch.norm(noise_pred, dim=-1, keepdim=True)
-    noise_norm = torch.norm(comb_pred, dim=-1, keepdim=True)
-    noise_pred = comb_pred * (cond_norm / noise_norm)
+        cond_norm = torch.norm(noise_pred, dim=-1, keepdim=True)
+        noise_norm = torch.norm(comb_pred, dim=-1, keepdim=True)
+        noise_pred = comb_pred * (cond_norm / noise_norm)
+
     # compute the log prob of next_latents given latents under the current model
     prev_sample, log_prob, prev_sample_mean, std_dev_t = sde_step_with_logprob(
         pipeline.scheduler,
@@ -285,7 +313,7 @@ def eval(pipeline, test_dataloader, config, rank, local_rank, world_size, device
         truncation=True,
         return_tensors="pt",
     ).input_ids.to(device)
-    last_batch_prompt_ids_gather = gather_tensor(last_batch_prompt_ids, world_size).cpu().float().numpy()
+    last_batch_prompt_ids_gather = gather_tensor(last_batch_prompt_ids, world_size).cpu().long().numpy()
     last_batch_prompts_gather = pipeline.tokenizer.batch_decode(
         last_batch_prompt_ids_gather, skip_special_tokens=True
     )
@@ -447,8 +475,12 @@ def main(_):
         use_activation_checkpointing=config.activation_checkpointing,
         use_device_mesh=False, 
     )
-    # Wrap language model with FSDP
-    transformer.cpu().to(dtype=torch.float32)
+    # Wrap language model with FSDP.
+    # NOTE: keep params at `inference_dtype` (bf16 in the benchmark config) to
+    # match verl-omni's `actor.fsdp_config.model_dtype=bfloat16` (bf16 master
+    # weights, bf16 optimizer states). The previous fp32 master + bf16 compute
+    # path doubled param/grad/optimizer-state bytes vs verl-omni.
+    transformer.cpu().to(dtype=inference_dtype)
     transformer = fsdp_wrapper(transformer, fsdp_config, get_transformer_layer_cls)
     pipeline.transformer = transformer
 
@@ -580,8 +612,36 @@ def main(_):
 
     # FSDP doesn't need deepspeed configuration
     # prepare prompt and reward fn
+    # Propagate GRM router/model settings (used by genrm_ocr_score) so the
+    # reward fn picks them up via env vars without changing its signature.
+    if hasattr(config, "reward_router_address"):
+        os.environ.setdefault("REWARD_ROUTER_ADDRESS", str(config.reward_router_address))
+    if hasattr(config, "reward_model_name"):
+        os.environ.setdefault("REWARD_MODEL_NAME", str(config.reward_model_name))
     reward_fn = getattr(flow_grpo.rewards, 'multi_score')(device, config.reward_fn)
     eval_reward_fn = getattr(flow_grpo.rewards, 'multi_score')(device, config.reward_fn)
+
+    # Timing accumulators for the four benchmark metrics that mirror verl-omni:
+    #   timing_s/agent_loop/generate_sequences/mean   (per-sample mean,
+    #       computed as mean(cumsum(per-mini-batch gen times)) so flow_grpo's
+    #       sequential mini-batches are charged the same "queue + serve"
+    #       latency that verl-omni samples experience under continuous
+    #       batching with concurrent dispatch.)
+    #   timing_s/agent_loop/compute_score/mean        (per-sample mean of the
+    #       per-mini-batch reward wall time; samples within a mini-batch share
+    #       the same call, no extra queueing because the reward server is not
+    #       the bottleneck.)
+    #   timing_s/update_actor                         (per-step total)
+    #   timing_s/step                                 (per-step wall clock)
+    bench_gen_times = []          # filled per sampling mini-batch (seconds)
+    bench_score_times = []        # filled per reward mini-batch    (seconds)
+    bench_update_actor_time = [0.0]  # cumulative seconds spent inside backward+step within an epoch
+
+    def _timed_reward_fn(images, prompts, prompt_metadata, **kwargs):
+        _t0 = time.time()
+        out = reward_fn(images, prompts, prompt_metadata, **kwargs)
+        bench_score_times.append(time.time() - _t0)
+        return out
     
     # FSDP setup completed above
     # executor to perform callbacks asynchronously. this is beneficial for the llava callbacks which makes a request to a
@@ -620,6 +680,13 @@ def main(_):
     global_step = 0
     train_iter = iter(train_dataloader)
     while True:
+        if epoch >= config.num_epochs:
+            break
+        # Reset benchmark accumulators for this epoch.
+        bench_gen_times.clear()
+        bench_score_times.clear()
+        bench_update_actor_time[0] = 0.0
+        _epoch_t0 = time.time()
         #################### EVAL ####################
         pipeline.transformer.eval()
         if epoch % config.save_freq == 0:
@@ -652,6 +719,7 @@ def main(_):
                 generator = create_generator(prompts, base_seed=epoch*10000+i)
             else:
                 generator = None
+            _gen_t0 = time.time()
             with autocast():
                 with torch.no_grad():
                     collected_data = pipeline_with_logprob(
@@ -668,13 +736,16 @@ def main(_):
                         sde_window_size=config.sample.sde_window_size,
                         sde_window_range=config.sample.sde_window_range,
                 )
+            if torch.cuda.is_available():
+                torch.cuda.synchronize(device)
+            bench_gen_times.append(time.time() - _gen_t0)
 
             latents = torch.stack(collected_data["all_latents"], dim=1) 
             log_probs = torch.stack(collected_data["all_log_probs"], dim=1)  
             timesteps = torch.stack(collected_data["all_timesteps"]).unsqueeze(0).repeat(config.sample.train_batch_size, 1)
             images = collected_data["images"]
             # compute rewards asynchronously
-            rewards = executor.submit(reward_fn, images, prompts, prompt_metadata, only_strict=True)
+            rewards = executor.submit(_timed_reward_fn, images, prompts, prompt_metadata, only_strict=True)
             # yield to to make sure reward computation starts
             time.sleep(0)
 
@@ -794,7 +865,7 @@ def main(_):
         # per-prompt mean/std tracking
         if config.per_prompt_stat_tracking:
             # gather the prompts across processes
-            prompt_ids = gather_tensor(samples["prompt_ids"], world_size).cpu().float().numpy()
+            prompt_ids = gather_tensor(samples["prompt_ids"], world_size).cpu().long().numpy()
             prompts = pipeline.tokenizer.batch_decode(
                 prompt_ids, skip_special_tokens=True
             )
@@ -837,6 +908,7 @@ def main(_):
         gradient_accumulation_steps = config.train.gradient_accumulation_steps * num_train_timesteps
 
         #################### TRAINING ####################
+        _update_phase_t0 = time.time()
         for inner_epoch in range(config.train.num_inner_epochs):
             # rebatch for training
             samples_batched = {
@@ -957,7 +1029,67 @@ def main(_):
                     ema.step(transformer_trainable_parameters, global_step)
             # make sure we did an optimization step at the end of the inner epoch
             # assert should_sync
-        
+        if torch.cuda.is_available():
+            torch.cuda.synchronize(device)
+        bench_update_actor_time[0] = time.time() - _update_phase_t0
+
+        # ---- Benchmark timing metrics (mirror verl-omni keys) ----
+        if rank == 0:
+            step_time = time.time() - _epoch_t0
+
+            # ----- agent_loop/generate_sequences/mean -----
+            # In verl-omni every sample's `simple_timer("generate_sequences")`
+            # wraps `await server_manager.generate(...)`; all samples in the
+            # batch are dispatched concurrently via `asyncio.gather` at the
+            # start of the gen phase, so each per-sample timer captures the
+            # full latency from step-start to that sample's response (queue
+            # wait inside the rollout scheduler + processing). The reduction
+            # is a plain `np.mean` over all samples.
+            #
+            # Flow_grpo serializes the optimization batch into
+            # `num_batches_per_epoch` mini-batches, each of equal size B.
+            # If we treat all samples as logically dispatched at step-start
+            # to a sequential server with capacity = 1 mini-batch, then a
+            # sample in mini-batch k (0-indexed) experiences a wall time of
+            # `cumsum(bench_gen_times)[k]`. Averaging over all samples
+            # (uniform B per mini-batch) reduces to `mean(cumsum(...))`.
+            # This makes the magnitude directly comparable to verl-omni.
+            if bench_gen_times:
+                gen_mean = float(np.mean(np.cumsum(bench_gen_times)))
+            else:
+                gen_mean = 0.0
+
+            # ----- agent_loop/compute_score/mean -----
+            # In verl-omni `simple_timer("compute_score")` wraps a single
+            # remote reward call AFTER the sample's generation finishes;
+            # it does NOT include any inter-sample queueing (samples are
+            # served concurrently by the reward server). Per-sample mean
+            # is the average of those per-call wall times.
+            #
+            # Flow_grpo dispatches one reward-fn call per mini-batch via a
+            # ThreadPoolExecutor (max_workers=8); the call itself fans out
+            # over its `train_batch_size` images via `asyncio.gather`, so
+            # all images in the same mini-batch see the same wall time.
+            # The reward server is shared and not bottlenecked by the
+            # trainer's submit pattern (gen >> reward in our setup), so
+            # there is no extra queue wait to fold in. Per-sample mean
+            # therefore reduces to the unweighted mean of per-mini-batch
+            # reward wall times.
+            if bench_score_times:
+                score_mean = float(np.mean(bench_score_times))
+            else:
+                score_mean = 0.0
+
+            wandb.log(
+                {
+                    "timing_s/agent_loop/generate_sequences/mean": gen_mean,
+                    "timing_s/agent_loop/compute_score/mean": score_mean,
+                    "timing_s/update_actor": bench_update_actor_time[0],
+                    "timing_s/step": step_time,
+                },
+                step=global_step,
+            )
+
         epoch+=1
         
 if __name__ == "__main__":
